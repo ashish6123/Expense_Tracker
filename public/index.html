@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign In — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-box">
+  <div class="auth-brand">
+    <span class="auth-brand-icon">💰</span>
+    <span class="auth-brand-name">Expense Tracker Pro</span>
+  </div>
+  <h1 class="auth-title">Welcome back</h1>
+  <p class="auth-sub">Sign in to your account</p>
+
+  <div id="alert" class="alert hidden"></div>
+
+  <div class="field">
+    <label for="email">Email address</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+  </div>
+
+  <div class="field">
+    <label for="password">Password</label>
+    <div class="pw-wrap">
+      <input type="password" id="password" placeholder="Your password" autocomplete="current-password">
+      <button class="pw-eye" id="pw-eye" type="button">👁</button>
+    </div>
+  </div>
+
+  <div style="text-align:right;margin:-6px 0 18px">
+    <a href="/forgot-password.html" class="link" style="font-size:0.83rem">Forgot password?</a>
+  </div>
+
+  <button class="btn btn-primary btn-full" id="login-btn" type="button">Sign In</button>
+
+  <p class="auth-footer">
+    Don't have an account? <a href="/register.html">Create one</a>
+  </p>
+</div>
+
+<script>
+  // Redirect if already logged in
+  fetch('/api/auth/me',{credentials:'include'})
+    .then(r=>r.json()).then(d=>{ if(d.success) location.href='/dashboard.html'; }).catch(()=>{});
+
+  // Toggle password
+  document.getElementById('pw-eye').addEventListener('click', function(){
+    var i=document.getElementById('password');
+    i.type = i.type==='password'?'text':'password';
+    this.textContent = i.type==='password'?'👁':'🙈';
+  });
+
+  // Login
+  document.getElementById('login-btn').addEventListener('click', async function(){
+    var email    = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    var alert    = document.getElementById('alert');
+    alert.className = 'alert hidden';
+
+    if (!email || !password) {
+      alert.textContent = 'Please enter your email and password.';
+      alert.className   = 'alert alert-error';
+      return;
+    }
+
+    this.disabled    = true;
+    this.textContent = 'Signing in…';
+
+    try {
+      var res  = await fetch('/api/auth/login',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email,password})
+      });
+      var data = await res.json();
+
+      if (data.success) {
+        location.href = '/dashboard.html';
+      } else if (data.requiresVerification) {
+        sessionStorage.setItem('pe', data.email || email);
+        sessionStorage.setItem('pt', 'verify_email');
+        location.href = '/verify-email.html';
+      } else {
+        alert.textContent = data.message || 'Login failed.';
+        alert.className   = 'alert alert-error';
+        this.disabled    = false;
+        this.textContent = 'Sign In';
+      }
+    } catch(e) {
+      alert.textContent = 'Cannot reach server. Is it running?';
+      alert.className   = 'alert alert-error';
+      this.disabled    = false;
+      this.textContent = 'Sign In';
+    }
+  });
+
+  // Enter key
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Enter') document.getElementById('login-btn').click();
+  });
+</script>
+</body>
+</html>

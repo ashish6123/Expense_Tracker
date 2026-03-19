@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Expenses — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><span class="sidebar-head-icon">💰</span><span class="sidebar-head-name">ExpenseTracker</span><button class="sidebar-x btn">✕</button></div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard.html"  class="nav-link"><span class="nav-icon">📊</span>Dashboard</a>
+      <a href="/expenses.html"   class="nav-link active"><span class="nav-icon">📋</span>Expenses</a>
+      <a href="/analytics.html"  class="nav-link"><span class="nav-icon">📈</span>Analytics</a>
+      <a href="/categories.html" class="nav-link"><span class="nav-icon">🏷️</span>Categories</a>
+      <a href="/profile.html"    class="nav-link"><span class="nav-icon">👤</span>Profile</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip"><div class="user-av" id="s-av"></div><div><div class="user-nm" id="s-nm"></div><div class="user-em" id="s-em"></div></div></div>
+      <button class="btn-logout" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="topbar-hamburger btn">☰</button>
+      <span class="topbar-title">Expenses</span>
+      <div class="topbar-right"><button class="btn btn-primary btn-sm" id="add-btn">+ Add Expense</button></div>
+    </header>
+    <div class="page">
+      <div class="filter-bar">
+        <input type="date" id="f-start" title="From date">
+        <input type="date" id="f-end" title="To date">
+        <select id="f-cat"><option value="">All Categories</option></select>
+        <button class="btn btn-outline btn-sm" id="clear-btn">Clear</button>
+      </div>
+      <div class="card"><div id="exp-list"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="overlay hidden" id="exp-overlay">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modal-title">Add Expense</h3><button class="modal-x btn" id="exp-x">✕</button></div>
+    <div id="exp-alert" class="alert hidden"></div>
+    <input type="hidden" id="edit-id">
+    <div class="two-field">
+      <div class="field"><label>Amount (₹)</label><input type="number" id="exp-amt" placeholder="0.00" min="0.01" step="0.01"></div>
+      <div class="field"><label>Date</label><input type="date" id="exp-date"></div>
+    </div>
+    <div class="field"><label>Category</label><select id="exp-cat"><option value="">Select category</option></select></div>
+    <div class="field"><label>Description</label><input type="text" id="exp-desc" placeholder="What was this for?"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" id="exp-cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="exp-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+var allExp=[], cats=[];
+
+async function loadCats(){
+  var r=await api('GET','/api/categories'); cats=r.categories||[];
+  var opts='<option value="">All Categories</option>'+cats.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.name+'</option>').join('');
+  document.getElementById('f-cat').innerHTML=opts;
+  document.getElementById('exp-cat').innerHTML='<option value="">Select category</option>'+cats.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.name+'</option>').join('');
+}
+
+async function loadExp(){
+  var s=document.getElementById('f-start').value, e=document.getElementById('f-end').value, c=document.getElementById('f-cat').value;
+  var url='/api/expenses?limit=200'+(s?'&start_date='+s:'')+(e?'&end_date='+e:'')+(c?'&category_id='+c:'');
+  try{
+    var r=await api('GET',url); allExp=r.expenses||[]; renderExp();
+  }catch(e2){}
+}
+
+function renderExp(){
+  var el=document.getElementById('exp-list');
+  if(!allExp.length){ el.innerHTML='<div class="empty"><div class="empty-ico">📭</div><p>No expenses found</p></div>'; return; }
+  el.innerHTML=allExp.map(e=>`
+    <div class="exp-row">
+      <span class="exp-icon">${e.category_icon||'💰'}</span>
+      <div class="exp-info">
+        <div class="exp-desc">${e.description||e.category_name||'Expense'}</div>
+        <div class="exp-meta">${e.category_name||'Uncategorized'} · ${fmtDate(e.date)}</div>
+      </div>
+      <div class="exp-amt">${fmtINR(e.amount)}</div>
+      <div class="exp-actions">
+        <button class="icon-btn" onclick="editExp(${e.id})" title="Edit">✏️</button>
+        <button class="icon-btn del" onclick="delExp(${e.id})" title="Delete">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function openAdd(){
+  document.getElementById('edit-id').value='';
+  document.getElementById('modal-title').textContent='Add Expense';
+  document.getElementById('exp-amt').value='';
+  document.getElementById('exp-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('exp-cat').value='';
+  document.getElementById('exp-desc').value='';
+  document.getElementById('exp-alert').className='alert hidden';
+  openModal('exp-overlay');
+}
+function editExp(id){
+  var e=allExp.find(x=>x.id===id); if(!e) return;
+  document.getElementById('edit-id').value=id;
+  document.getElementById('modal-title').textContent='Edit Expense';
+  document.getElementById('exp-amt').value=e.amount;
+  document.getElementById('exp-date').value=e.date.split('T')[0];
+  document.getElementById('exp-cat').value=e.category_id||'';
+  document.getElementById('exp-desc').value=e.description||'';
+  document.getElementById('exp-alert').className='alert hidden';
+  openModal('exp-overlay');
+}
+function delExp(id){
+  confirm('Delete this expense? This cannot be undone.', async ()=>{
+    try{ var r=await api('DELETE','/api/expenses/'+id); if(r.success){toast('Deleted.');loadExp();}else toast(r.message,'err'); }catch(e){toast('Delete failed.','err');}
+  });
+}
+
+document.getElementById('add-btn').onclick   = openAdd;
+document.getElementById('exp-x').onclick     = ()=>closeModal('exp-overlay');
+document.getElementById('exp-cancel').onclick= ()=>closeModal('exp-overlay');
+document.getElementById('exp-overlay').onclick=function(e){if(e.target===this)closeModal('exp-overlay');};
+document.getElementById('clear-btn').onclick =function(){document.getElementById('f-start').value='';document.getElementById('f-end').value='';document.getElementById('f-cat').value='';loadExp();};
+document.getElementById('f-start').onchange=loadExp;
+document.getElementById('f-end').onchange=loadExp;
+document.getElementById('f-cat').onchange=loadExp;
+
+document.getElementById('exp-save').onclick=async function(){
+  var id=document.getElementById('edit-id').value;
+  var amt=document.getElementById('exp-amt').value, date=document.getElementById('exp-date').value;
+  var al=document.getElementById('exp-alert'); al.className='alert hidden';
+  if(!amt||!date){al.textContent='Amount and date required.';al.className='alert alert-error';return;}
+  this.disabled=true;this.textContent='Saving…';
+  try{
+    var r=await api(id?'PUT':'POST',id?'/api/expenses/'+id:'/api/expenses',{amount:parseFloat(amt),category_id:document.getElementById('exp-cat').value||null,description:document.getElementById('exp-desc').value,date});
+    if(r.success){closeModal('exp-overlay');toast(r.message);loadExp();}
+    else{al.textContent=r.message;al.className='alert alert-error';}
+  }catch(e){al.textContent='Failed.';al.className='alert alert-error';}
+  this.disabled=false;this.textContent='Save';
+};
+
+initApp().then(()=>{loadCats();loadExp();});
+</script>
+</body>
+</html>

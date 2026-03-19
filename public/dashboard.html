@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="sidebar-head-icon">💰</span>
+      <span class="sidebar-head-name">ExpenseTracker</span>
+      <button class="sidebar-x btn">✕</button>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard.html"  class="nav-link active"><span class="nav-icon">📊</span>Dashboard</a>
+      <a href="/expenses.html"   class="nav-link"><span class="nav-icon">📋</span>Expenses</a>
+      <a href="/analytics.html"  class="nav-link"><span class="nav-icon">📈</span>Analytics</a>
+      <a href="/categories.html" class="nav-link"><span class="nav-icon">🏷️</span>Categories</a>
+      <a href="/profile.html"    class="nav-link"><span class="nav-icon">👤</span>Profile</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <div class="user-av" id="s-av"></div>
+        <div><div class="user-nm" id="s-nm"></div><div class="user-em" id="s-em"></div></div>
+      </div>
+      <button class="btn-logout" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <button class="topbar-hamburger btn">☰</button>
+      <span class="topbar-title">Dashboard</span>
+      <div class="topbar-right">
+        <button class="btn btn-primary btn-sm" id="add-btn">+ Add Expense</button>
+      </div>
+    </header>
+
+    <div class="page">
+      <div class="page-head">
+        <h1>Dashboard</h1>
+        <div class="month-nav">
+          <button id="prev-m">‹</button>
+          <span id="month-lbl"></span>
+          <button id="next-m">›</button>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">This Month</div><div class="stat-val" id="s-month">₹0</div><div class="stat-sub" id="s-month-c">0 transactions</div></div>
+        <div class="stat hi"><div class="stat-label">All Time</div><div class="stat-val" id="s-all">₹0</div><div class="stat-sub" id="s-all-c">0 total</div></div>
+        <div class="stat"><div class="stat-label">Daily Avg</div><div class="stat-val" id="s-avg">₹0</div><div class="stat-sub">this month</div></div>
+        <div class="stat"><div class="stat-label">Top Category</div><div class="stat-val" id="s-top" style="font-size:1rem">—</div><div class="stat-sub" id="s-top-a"></div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head"><h3>Category Breakdown</h3></div>
+          <div id="cat-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Recent Expenses</h3></div>
+          <div id="recent-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="overlay hidden" id="exp-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Add Expense</h3>
+      <button class="modal-x btn" id="exp-x">✕</button>
+    </div>
+    <div id="exp-alert" class="alert hidden"></div>
+    <div class="two-field">
+      <div class="field"><label>Amount (₹)</label><input type="number" id="exp-amt" placeholder="0.00" min="0.01" step="0.01"></div>
+      <div class="field"><label>Date</label><input type="date" id="exp-date"></div>
+    </div>
+    <div class="field"><label>Category</label><select id="exp-cat"><option value="">Select category</option></select></div>
+    <div class="field"><label>Description</label><input type="text" id="exp-desc" placeholder="What was this for?"></div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" id="exp-cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="exp-save">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+var cm = new Date().getMonth()+1, cy = new Date().getFullYear();
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function setMonthLabel(){ document.getElementById('month-lbl').textContent = MONTHS[cm-1]+' '+cy; }
+document.getElementById('prev-m').onclick = function(){ cm--; if(cm<1){cm=12;cy--;} setMonthLabel(); loadDash(); };
+document.getElementById('next-m').onclick = function(){ cm++; if(cm>12){cm=1;cy++;} setMonthLabel(); loadDash(); };
+
+async function loadDash(){
+  try {
+    var r = await api('GET','/api/expenses/analytics/summary?month='+cm+'&year='+cy);
+    var s = r.summary;
+    document.getElementById('s-month').textContent   = fmtINR(s.monthly.total);
+    document.getElementById('s-month-c').textContent = s.monthly.count+' transactions';
+    document.getElementById('s-all').textContent     = fmtINR(s.allTime.total);
+    document.getElementById('s-all-c').textContent   = s.allTime.count+' total';
+    var days = new Date(cy, cm, 0).getDate();
+    document.getElementById('s-avg').textContent = fmtINR(s.monthly.total/days);
+    var top = s.byCategory.find(c=>c.total>0);
+    document.getElementById('s-top').textContent   = top ? top.icon+' '+top.name : '—';
+    document.getElementById('s-top-a').textContent = top ? fmtINR(top.total) : '';
+
+    var active = s.byCategory.filter(c=>c.total>0);
+    var cl = document.getElementById('cat-list');
+    if(!active.length){ cl.innerHTML='<div class="empty"><div class="empty-ico">📊</div><p>No expenses this month</p></div>'; }
+    else { cl.innerHTML = active.map(c=>{ var pct=s.monthly.total>0?(c.total/s.monthly.total*100).toFixed(1):0; return '<div class="cat-row"><span class="cat-em">'+(c.icon||'💰')+'</span><div class="cat-inf"><div class="cat-nm">'+c.name+' <span style="color:var(--text3);font-size:0.72rem">'+pct+'%</span></div><div class="cat-bar-bg"><div class="cat-bar-fg" style="width:'+pct+'%;background:'+c.color+'"></div></div></div><div class="cat-amt">'+fmtINR(c.total)+'</div></div>'; }).join(''); }
+  } catch(e){}
+
+  try {
+    var r2 = await api('GET','/api/expenses?limit=6');
+    var rl  = document.getElementById('recent-list');
+    if(!r2.expenses||!r2.expenses.length){ rl.innerHTML='<div class="empty"><div class="empty-ico">📭</div><p>No expenses yet</p></div>'; return; }
+    rl.innerHTML = r2.expenses.map(e=>'<div class="exp-row"><span class="exp-icon">'+(e.category_icon||'💰')+'</span><div class="exp-info"><div class="exp-desc">'+(e.description||e.category_name||'Expense')+'</div><div class="exp-meta">'+(e.category_name||'Uncategorized')+' · '+fmtDate(e.date)+'</div></div><div class="exp-amt">'+fmtINR(e.amount)+'</div></div>').join('');
+  } catch(e){}
+}
+
+// Modal
+var cats=[];
+async function loadCats(){
+  var r=await api('GET','/api/categories'); cats=r.categories||[];
+  var sel=document.getElementById('exp-cat');
+  sel.innerHTML='<option value="">Select category</option>'+cats.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.name+'</option>').join('');
+}
+document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+document.getElementById('add-btn').onclick  = ()=>openModal('exp-overlay');
+document.getElementById('exp-x').onclick    = ()=>closeModal('exp-overlay');
+document.getElementById('exp-cancel').onclick = ()=>closeModal('exp-overlay');
+document.getElementById('exp-overlay').onclick = function(e){ if(e.target===this) closeModal('exp-overlay'); };
+
+document.getElementById('exp-save').onclick = async function(){
+  var amt  = document.getElementById('exp-amt').value;
+  var date = document.getElementById('exp-date').value;
+  var al   = document.getElementById('exp-alert');
+  al.className='alert hidden';
+  if(!amt||!date){ al.textContent='Amount and date are required.'; al.className='alert alert-error'; return; }
+  this.disabled=true; this.textContent='Saving…';
+  try{
+    var r=await api('POST','/api/expenses',{amount:parseFloat(amt),category_id:document.getElementById('exp-cat').value||null,description:document.getElementById('exp-desc').value,date});
+    if(r.success){ closeModal('exp-overlay'); toast('Expense added!'); document.getElementById('exp-amt').value=''; document.getElementById('exp-desc').value=''; loadDash(); }
+    else{ al.textContent=r.message; al.className='alert alert-error'; }
+  }catch(e){ al.textContent='Failed to save.'; al.className='alert alert-error'; }
+  this.disabled=false; this.textContent='Save Expense';
+};
+
+setMonthLabel();
+initApp().then(()=>{ loadDash(); loadCats(); });
+</script>
+</body>
+</html>

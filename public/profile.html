@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Profile — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><span class="sidebar-head-icon">💰</span><span class="sidebar-head-name">ExpenseTracker</span><button class="sidebar-x btn">✕</button></div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard.html"  class="nav-link"><span class="nav-icon">📊</span>Dashboard</a>
+      <a href="/expenses.html"   class="nav-link"><span class="nav-icon">📋</span>Expenses</a>
+      <a href="/analytics.html"  class="nav-link"><span class="nav-icon">📈</span>Analytics</a>
+      <a href="/categories.html" class="nav-link"><span class="nav-icon">🏷️</span>Categories</a>
+      <a href="/profile.html"    class="nav-link active"><span class="nav-icon">👤</span>Profile</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip"><div class="user-av" id="s-av"></div><div><div class="user-nm" id="s-nm"></div><div class="user-em" id="s-em"></div></div></div>
+      <button class="btn-logout" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="topbar-hamburger btn">☰</button>
+      <span class="topbar-title">Profile</span>
+    </header>
+    <div class="page">
+      <div class="profile-grid">
+
+        <!-- Account info -->
+        <div class="card">
+          <div class="card-head"><h3>Account Information</h3></div>
+          <div class="profile-form">
+            <div class="profile-av-row">
+              <div class="profile-av" id="p-av"></div>
+              <div><div class="profile-nm" id="p-nm"></div><div class="profile-em" id="p-em"></div></div>
+            </div>
+            <div id="name-alert" class="alert hidden"></div>
+            <div class="field"><label>Full Name</label><input type="text" id="p-name"></div>
+            <button class="btn btn-primary btn-sm" id="save-name-btn" type="button">Update Name</button>
+          </div>
+        </div>
+
+        <!-- Change password -->
+        <div class="card">
+          <div class="card-head"><h3>Change Password</h3></div>
+          <div class="profile-form">
+            <div id="pw-alert" class="alert hidden"></div>
+            <div class="field">
+              <label>Current Password</label>
+              <div class="pw-wrap"><input type="password" id="cur-pw" placeholder="Current password"><button class="pw-eye" id="eye1" type="button">👁</button></div>
+            </div>
+            <div class="field">
+              <label>New Password</label>
+              <div class="pw-wrap"><input type="password" id="new-pw" placeholder="Min. 8 characters"><button class="pw-eye" id="eye2" type="button">👁</button></div>
+            </div>
+            <div class="field"><label>Confirm New Password</label><input type="password" id="conf-pw" placeholder="Repeat new password"></div>
+            <button class="btn btn-primary btn-sm" id="save-pw-btn" type="button">Change Password</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+function toggleEye(inputId, btn){ var i=document.getElementById(inputId); i.type=i.type==='password'?'text':'password'; btn.textContent=i.type==='password'?'👁':'🙈'; }
+document.getElementById('eye1').onclick=function(){ toggleEye('cur-pw',this); };
+document.getElementById('eye2').onclick=function(){ toggleEye('new-pw',this); };
+
+function fillProfile(u){
+  var initials=u.name.trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  var av=document.getElementById('p-av'); av.textContent=initials; av.style.background=u.avatar||'#6366f1';
+  document.getElementById('p-nm').textContent=u.name;
+  document.getElementById('p-em').textContent=u.email;
+  document.getElementById('p-name').value=u.name;
+}
+
+document.getElementById('save-name-btn').onclick=async function(){
+  var name=document.getElementById('p-name').value.trim();
+  var al=document.getElementById('name-alert'); al.className='alert hidden';
+  if(!name){al.textContent='Name cannot be empty.';al.className='alert alert-error';return;}
+  this.disabled=true;this.textContent='Saving…';
+  try{
+    var r=await api('PUT','/api/auth/profile',{name});
+    if(r.success){ window._user.name=name; fillProfile(window._user); _fillSidebar(window._user); al.textContent='Name updated!'; al.className='alert alert-success'; toast('Name updated!'); }
+    else{ al.textContent=r.message; al.className='alert alert-error'; }
+  }catch(e){al.textContent='Failed.';al.className='alert alert-error';}
+  this.disabled=false;this.textContent='Update Name';
+};
+
+document.getElementById('save-pw-btn').onclick=async function(){
+  var cur=document.getElementById('cur-pw').value;
+  var np=document.getElementById('new-pw').value;
+  var cp=document.getElementById('conf-pw').value;
+  var al=document.getElementById('pw-alert'); al.className='alert hidden';
+  if(!cur||!np||!cp){al.textContent='All fields required.';al.className='alert alert-error';return;}
+  if(np.length<8){al.textContent='New password must be at least 8 characters.';al.className='alert alert-error';return;}
+  if(np!==cp){al.textContent='Passwords do not match.';al.className='alert alert-error';return;}
+  this.disabled=true;this.textContent='Saving…';
+  try{
+    var r=await api('PUT','/api/auth/profile',{currentPassword:cur,newPassword:np});
+    if(r.success){ document.getElementById('cur-pw').value=''; document.getElementById('new-pw').value=''; document.getElementById('conf-pw').value=''; al.textContent='Password changed!'; al.className='alert alert-success'; toast('Password changed!'); }
+    else{ al.textContent=r.message; al.className='alert alert-error'; }
+  }catch(e){al.textContent='Failed.';al.className='alert alert-error';}
+  this.disabled=false;this.textContent='Change Password';
+};
+
+initApp().then(u=>{ if(u) fillProfile(u); });
+</script>
+</body>
+</html>

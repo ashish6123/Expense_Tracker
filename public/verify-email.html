@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Verify Email — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-box">
+  <div class="auth-brand"><span class="auth-brand-icon">📧</span></div>
+  <h1 class="auth-title">Check your email</h1>
+  <p class="auth-sub" id="sub-text">We sent a 6-digit code to your email</p>
+
+  <div id="alert" class="alert hidden"></div>
+
+  <div class="otp-row" id="otp-row">
+    <input class="otp-input" maxlength="1" inputmode="numeric" type="text">
+    <input class="otp-input" maxlength="1" inputmode="numeric" type="text">
+    <input class="otp-input" maxlength="1" inputmode="numeric" type="text">
+    <span class="otp-sep">—</span>
+    <input class="otp-input" maxlength="1" inputmode="numeric" type="text">
+    <input class="otp-input" maxlength="1" inputmode="numeric" type="text">
+    <input class="otp-input" maxlength="1" inputmode="numeric" type="text">
+  </div>
+
+  <button class="btn btn-primary btn-full" id="verify-btn" type="button">Verify Email</button>
+
+  <p class="auth-footer" style="margin-top:14px">
+    Didn't get it?
+    <button class="link" id="resend-btn" type="button">Resend OTP</button>
+    <span id="cd"></span>
+  </p>
+  <p class="auth-footer"><a href="/">← Back to login</a></p>
+</div>
+
+<script>
+  var email = sessionStorage.getItem('pe');
+  if (!email) { location.href='/'; }
+  document.getElementById('sub-text').textContent = 'We sent a 6-digit code to ' + email;
+
+  // OTP wiring
+  var inputs = document.querySelectorAll('.otp-input');
+  inputs.forEach(function(inp,i){
+    inp.addEventListener('input',function(){
+      this.value = this.value.replace(/\D/g,'').slice(-1);
+      this.classList.toggle('filled',!!this.value);
+      if(this.value && i<inputs.length-1) inputs[i+1].focus();
+    });
+    inp.addEventListener('keydown',function(e){
+      if(e.key==='Backspace'&&!this.value&&i>0) inputs[i-1].focus();
+    });
+    inp.addEventListener('paste',function(e){
+      var t=(e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'');
+      if(t.length>=6){
+        inputs.forEach(function(d,j){d.value=t[j]||'';d.classList.toggle('filled',!!t[j]);});
+        inputs[5].focus(); e.preventDefault();
+      }
+    });
+  });
+  function getOTP(){ return Array.from(inputs).map(d=>d.value).join(''); }
+
+  // Verify
+  document.getElementById('verify-btn').addEventListener('click', async function(){
+    var otp = getOTP();
+    var al  = document.getElementById('alert');
+    al.className='alert hidden';
+    if(otp.length!==6){ al.textContent='Enter all 6 digits.'; al.className='alert alert-error'; return; }
+    this.disabled=true; this.textContent='Verifying…';
+    try {
+      var res  = await fetch('/api/auth/verify-email',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,otp})});
+      var data = await res.json();
+      if(data.success){ sessionStorage.removeItem('pe'); sessionStorage.removeItem('pt'); location.href='/dashboard.html'; }
+      else{ al.textContent=data.message||'Invalid OTP.'; al.className='alert alert-error'; this.disabled=false; this.textContent='Verify Email'; }
+    } catch(e){ al.textContent='Network error.'; al.className='alert alert-error'; this.disabled=false; this.textContent='Verify Email'; }
+  });
+
+  // Resend + countdown
+  var timer=null;
+  function startCD(){
+    var btn=document.getElementById('resend-btn'), cd=document.getElementById('cd');
+    btn.disabled=true; btn.style.opacity='0.5'; var s=60; cd.textContent=' ('+s+'s)';
+    if(timer) clearInterval(timer);
+    timer=setInterval(function(){ s--; cd.textContent=' ('+s+'s)'; if(s<=0){clearInterval(timer);btn.disabled=false;btn.style.opacity='1';cd.textContent='';} },1000);
+  }
+  startCD();
+
+  document.getElementById('resend-btn').addEventListener('click', async function(){
+    var al=document.getElementById('alert');
+    try{
+      var res=await fetch('/api/auth/resend-otp',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,type:'verify_email'})});
+      var data=await res.json();
+      al.textContent=data.message; al.className='alert alert-'+(data.success?'success':'error');
+      if(data.success) startCD();
+    } catch(e){ al.textContent='Failed to resend.'; al.className='alert alert-error'; }
+  });
+</script>
+</body>
+</html>

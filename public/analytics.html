@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Analytics — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><span class="sidebar-head-icon">💰</span><span class="sidebar-head-name">ExpenseTracker</span><button class="sidebar-x btn">✕</button></div>
+    <nav class="sidebar-nav">
+      <a href="/dashboard.html"  class="nav-link"><span class="nav-icon">📊</span>Dashboard</a>
+      <a href="/expenses.html"   class="nav-link"><span class="nav-icon">📋</span>Expenses</a>
+      <a href="/analytics.html"  class="nav-link active"><span class="nav-icon">📈</span>Analytics</a>
+      <a href="/categories.html" class="nav-link"><span class="nav-icon">🏷️</span>Categories</a>
+      <a href="/profile.html"    class="nav-link"><span class="nav-icon">👤</span>Profile</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip"><div class="user-av" id="s-av"></div><div><div class="user-nm" id="s-nm"></div><div class="user-em" id="s-em"></div></div></div>
+      <button class="btn-logout" id="logout-btn">Sign out</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="topbar-hamburger btn">☰</button>
+      <span class="topbar-title">Analytics</span>
+    </header>
+    <div class="page">
+      <div class="page-head">
+        <h1>Analytics</h1>
+        <div class="month-nav">
+          <button id="prev-m">‹</button>
+          <span id="month-lbl"></span>
+          <button id="next-m">›</button>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-head"><h3>6-Month Spending Trend</h3></div>
+          <div id="bar-chart" style="padding-bottom:16px"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>Spending by Category</h3></div>
+          <div id="pie-list" class="pie-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+var cm=new Date().getMonth()+1, cy=new Date().getFullYear();
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var MONTHS_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function setLbl(){ document.getElementById('month-lbl').textContent=MONTHS[cm-1]+' '+cy; }
+document.getElementById('prev-m').onclick=function(){cm--;if(cm<1){cm=12;cy--;}setLbl();load();};
+document.getElementById('next-m').onclick=function(){cm++;if(cm>12){cm=1;cy++;}setLbl();load();};
+
+async function load(){
+  try{
+    var r=await api('GET','/api/expenses/analytics/summary?month='+cm+'&year='+cy);
+    var s=r.summary;
+
+    // Bar chart
+    var trend=s.monthlyTrend||[];
+    var bc=document.getElementById('bar-chart');
+    if(!trend.length){ bc.innerHTML='<div class="empty"><p>Not enough data yet</p></div>'; }
+    else{
+      var max=Math.max(...trend.map(t=>parseFloat(t.total)),1);
+      bc.innerHTML='<div class="bar-chart">'+trend.map(t=>{
+        var pct=(parseFloat(t.total)/max*100).toFixed(1);
+        return '<div class="bar-item"><div class="bar-val">'+fmtINRShort(t.total)+'</div><div class="bar-body" style="height:'+pct+'%"></div><div class="bar-lbl">'+MONTHS_SHORT[t.month-1]+'</div></div>';
+      }).join('')+'</div>';
+    }
+
+    // Pie / legend
+    var active=s.byCategory.filter(c=>c.total>0).slice(0,8);
+    var total=s.monthly.total;
+    var pl=document.getElementById('pie-list');
+    if(!active.length){ pl.innerHTML='<div class="empty"><p>No data this month</p></div>'; }
+    else{ pl.innerHTML=active.map(c=>{
+      var pct=total>0?(c.total/total*100).toFixed(1):0;
+      return '<div class="pie-row"><div class="pie-dot" style="background:'+c.color+'"></div><span style="font-size:16px">'+(c.icon||'💰')+'</span><span class="pie-name">'+c.name+'</span><span class="pie-pct">'+pct+'%</span><span class="pie-amt">'+fmtINR(c.total)+'</span></div>';
+    }).join(''); }
+  }catch(e){}
+}
+
+setLbl();
+initApp().then(load);
+</script>
+</body>
+</html>

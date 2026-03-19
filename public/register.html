@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Create Account — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="auth-page">
+
+<div class="auth-box">
+  <div class="auth-brand">
+    <span class="auth-brand-icon">💰</span>
+    <span class="auth-brand-name">Expense Tracker Pro</span>
+  </div>
+  <h1 class="auth-title">Create account</h1>
+  <p class="auth-sub">Start tracking your expenses today</p>
+
+  <div id="alert" class="alert hidden"></div>
+
+  <div class="field">
+    <label for="name">Full name</label>
+    <input type="text" id="name" placeholder="John Doe" autocomplete="name">
+  </div>
+
+  <div class="field">
+    <label for="email">Email address</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+  </div>
+
+  <div class="field">
+    <label for="password">Password <span style="color:var(--text3);font-weight:400">(min. 8 chars)</span></label>
+    <div class="pw-wrap">
+      <input type="password" id="password" placeholder="Create a strong password" autocomplete="new-password">
+      <button class="pw-eye" id="pw-eye" type="button">👁</button>
+    </div>
+    <div class="pw-bar"><div class="pw-bar-fill" id="pw-fill"></div></div>
+  </div>
+
+  <button class="btn btn-primary btn-full" id="reg-btn" type="button">Create Account</button>
+
+  <p class="auth-footer">
+    Already have an account? <a href="/">Sign in</a>
+  </p>
+</div>
+
+<script>
+  // Password toggle
+  document.getElementById('pw-eye').addEventListener('click', function(){
+    var i=document.getElementById('password');
+    i.type=i.type==='password'?'text':'password';
+    this.textContent=i.type==='password'?'👁':'🙈';
+  });
+
+  // Password strength
+  document.getElementById('password').addEventListener('input', function(){
+    var v=this.value, fill=document.getElementById('pw-fill');
+    var pct=0, col='#ef4444';
+    if(v.length>=8){pct=40;}
+    if(v.length>=8&&/[A-Z]/.test(v)){pct=70;col='#f59e0b';}
+    if(v.length>=10&&/[A-Z]/.test(v)&&/[0-9]/.test(v)&&/[^A-Za-z0-9]/.test(v)){pct=100;col='#10b981';}
+    fill.style.width=v?pct+'%':'0';
+    fill.style.background=col;
+  });
+
+  // Register
+  document.getElementById('reg-btn').addEventListener('click', async function(){
+    var name     = document.getElementById('name').value.trim();
+    var email    = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    var al       = document.getElementById('alert');
+    al.className = 'alert hidden';
+
+    if (!name)            { al.textContent='Please enter your name.';al.className='alert alert-error';return; }
+    if (!email)           { al.textContent='Please enter your email.';al.className='alert alert-error';return; }
+    if (password.length<8){ al.textContent='Password must be at least 8 characters.';al.className='alert alert-error';return; }
+
+    this.disabled=true; this.textContent='Creating account…';
+
+    try {
+      var res  = await fetch('/api/auth/register',{
+        method:'POST', credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name,email,password})
+      });
+      var data = await res.json();
+
+      if (data.success) {
+        sessionStorage.setItem('pe', data.email||email);
+        sessionStorage.setItem('pt', 'verify_email');
+        location.href = '/verify-email.html';
+      } else {
+        al.textContent = data.message||'Registration failed.';
+        al.className   = 'alert alert-error';
+        this.disabled=false; this.textContent='Create Account';
+      }
+    } catch(e) {
+      al.textContent='Cannot reach server.';
+      al.className='alert alert-error';
+      this.disabled=false; this.textContent='Create Account';
+    }
+  });
+
+  document.addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('reg-btn').click(); });
+</script>
+</body>
+</html>
