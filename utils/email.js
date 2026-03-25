@@ -2,7 +2,7 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const EMAIL_FROM = 'onboarding@resend.dev'; // safe default
+const EMAIL_FROM = 'expensetracker@br.com'; // safe default
 
 function otpEmailTemplate(otp, type, name) {
   const isReset = type === 'forgot_password';
@@ -27,6 +27,8 @@ async function sendOTPEmail(email, otp, type, name = 'User') {
     : '✅ Verify Your Email';
 
   try {
+    console.log("📤 Sending email to:", email); // ✅ ADD THIS
+
     const response = await resend.emails.send({
       from: EMAIL_FROM,
       to: email,
@@ -34,12 +36,12 @@ async function sendOTPEmail(email, otp, type, name = 'User') {
       html: otpEmailTemplate(otp, type, name),
     });
 
-    console.log("✅ Email sent:", response);
+    console.log("🔥 RESEND RESPONSE:", JSON.stringify(response, null, 2)); // ✅ ADD THIS
+
     return { success: true };
   } catch (error) {
     console.error("❌ Email error:", error);
     throw new Error('Failed to send email');
   }
 }
-
 module.exports = sendOTPEmail;
