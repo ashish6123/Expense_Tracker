@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/connection');
-const { sendOTPEmail } = require('../utils/email');
+const sendOTPEmail = require('../utils/email'); 
 const authMiddleware = require('../middleware/auth');
 
 const OTP_EXPIRES = parseInt(process.env.OTP_EXPIRES_IN_MINUTES || 10);
