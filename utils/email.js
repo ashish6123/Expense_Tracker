@@ -1,15 +1,24 @@
-const nodemailer = require('nodemailer');
-require('dotenv').config();
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const sendEmail = async (to, subject, html) => {
+  try {
+    const response = await resend.emails.send({
+      from: 'onboarding@resend.dev', // works without domain
+      to,
+      subject,
+      html,
+    });
+
+    console.log("✅ Email sent:", response);
+  } catch (error) {
+    console.error("❌ Email error:", error.message);
+    throw error;
+  }
+};
+
+module.exports = sendEmail;
 
 const EMAIL_FROM = process.env.EMAIL_FROM || '"Expense Tracker Pro" <noreply@expensetracker.com>';
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
