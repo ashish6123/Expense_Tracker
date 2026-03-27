@@ -47,7 +47,10 @@ async function sendOTPEmail(email, otp, type, name = 'User') {
     to: email,
     from: `Expense Tracker <${process.env.SENDGRID_VERIFIED_SENDER}>`, // MUST be verified in SendGrid
     subject,
-    html: otpEmailTemplate(otp, type, name),
+    html: `
+  <p>Your OTP is:</p>
+  <h1>${otp}</h1>
+  `,
   };
 
   try {
