@@ -45,7 +45,7 @@ async function sendOTPEmail(email, otp, type, name = 'User') {
 
   const msg = {
     to: email,
-    from: process.env.SENDGRID_VERIFIED_SENDER, // MUST be verified in SendGrid
+    from: `Expense Tracker <${process.env.SENDGRID_VERIFIED_SENDER}>`, // MUST be verified in SendGrid
     subject,
     html: otpEmailTemplate(otp, type, name),
   };
@@ -54,6 +54,8 @@ async function sendOTPEmail(email, otp, type, name = 'User') {
     console.log("📤 Sending email to:", email);
 
     const response = await sgMail.send(msg);
+
+    console.log("FROM:", process.env.SENDGRID_VERIFIED_SENDER);
 
     console.log("🔥 SendGrid Response:", response[0]?.statusCode);
 
