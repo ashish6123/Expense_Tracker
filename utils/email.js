@@ -1,47 +1,67 @@
-const { Resend } = require('resend');
+const sgMail = require('@sendgrid/mail');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Set API key from environment
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-const EMAIL_FROM = 'ashishranjaniitp@gmail.com';
-
+/**
+ * Generate OTP Email HTML Template
+ */
 function otpEmailTemplate(otp, type, name) {
   const isReset = type === 'forgot_password';
+
   const title = isReset ? 'Reset Your Password' : 'Verify Your Email';
   const message = isReset
     ? 'You requested a password reset. Use the OTP below to reset your password.'
     : 'Welcome! Use the OTP below to verify your email address.';
 
   return `
-    <h2>${title}</h2>
-    <p>Hi ${name}, ${message}</p>
-    <h1>${otp}</h1>
-    <p>Expires in ${process.env.OTP_EXPIRES_IN_MINUTES || 10} minutes</p>
+    <div style="font-family: Arial, sans-serif; padding: 20px;">
+      <h2>${title}</h2>
+      <p>Hi ${name},</p>
+      <p>${message}</p>
+
+      <div style="margin: 20px 0; padding: 15px; background: #f4f4f4; text-align: center;">
+        <h1 style="letter-spacing: 5px;">${otp}</h1>
+      </div>
+
+      <p>This OTP will expire in ${process.env.OTP_EXPIRES_IN_MINUTES || 10} minutes.</p>
+      <p>If you didn’t request this, you can safely ignore this email.</p>
+
+      <br>
+      <p>— Expense Tracker Pro</p>
+    </div>
   `;
 }
 
+/**
+ * Send OTP Email
+ */
 async function sendOTPEmail(email, otp, type, name = 'User') {
   const isReset = type === 'forgot_password';
 
   const subject = isReset
-    ? '🔐 Password Reset OTP'
-    : '✅ Verify Your Email';
+    ? '🔐 Password Reset OTP - Expense Tracker'
+    : '✅ Verify Your Email - Expense Tracker';
+
+  const msg = {
+    to: email,
+    from: process.env.SENDGRID_VERIFIED_SENDER, // MUST be verified in SendGrid
+    subject,
+    html: otpEmailTemplate(otp, type, name),
+  };
 
   try {
-    console.log("📤 Sending email to:", email); // ✅ ADD THIS
+    console.log("📤 Sending email to:", email);
 
-    const response = await resend.emails.send({
-      from: EMAIL_FROM,
-      to: email,
-      subject,
-      html: otpEmailTemplate(otp, type, name),
-    });
+    const response = await sgMail.send(msg);
 
-    console.log("🔥 RESEND RESPONSE:", JSON.stringify(response, null, 2)); // ✅ ADD THIS
+    console.log("🔥 SendGrid Response:", response[0]?.statusCode);
 
     return { success: true };
   } catch (error) {
-    console.error("❌ Email error:", error);
+    console.error("❌ SendGrid Error:", error.response?.body || error);
     throw new Error('Failed to send email');
   }
 }
+
 module.exports = sendOTPEmail;
