@@ -2,7 +2,7 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const EMAIL_FROM = 'Expense Tracker <noreply@yourdomain.com>';
+const EMAIL_FROM = 'ashishranjaniitp@gmail.com';
 
 function otpEmailTemplate(otp, type, name) {
   const isReset = type === 'forgot_password';
