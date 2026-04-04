@@ -3,7 +3,6 @@
 A modern, full-stack **Expense Tracking Web App** built with a focus on **clean UI, real-world features, and production readiness**.
 
 🔗 **Live App:** https://expense-tracker-awlz.onrender.com/
-📂 **GitHub Repo:** https://github.com/ashish6123/Expense_Tracker
 
 ---
 
