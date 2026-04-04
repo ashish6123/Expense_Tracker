@@ -1,4 +1,4 @@
-# 💸 Expense Tracker Pro
+# 💸 Expense Tracker
 
 A modern, full-stack **Expense Tracking Web App** built with a focus on **clean UI, real-world features, and production readiness**.
 
