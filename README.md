@@ -45,7 +45,7 @@ Clean and minimal login experience with OTP support.
 Modern dashboard with insights, recent expenses, and category breakdown.
 
 <p align="center">
-  <img src="./assets/Dashboard.png" width="1000"/>
+  <img src="./assets/Dashboard.png.png" width="1000"/>
 </p>
 
 ---
