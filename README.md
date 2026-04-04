@@ -210,8 +210,6 @@ If you like this project:
 
 **Ashish Ranjan**
 
-* GitHub: https://github.com/ashish6123
-* Project: Expense Tracker Pro
 
 ---
 
