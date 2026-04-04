@@ -35,7 +35,7 @@ This project was built as a **full-stack capstone project** with real-world cons
 Clean and minimal login experience with OTP support.
 
 <p align="center">
-  <img src="./assets/login.png" width="600"/>
+  <img src="./assets/Signin_page.png" width="600"/>
 </p>
 
 ---
@@ -45,7 +45,7 @@ Clean and minimal login experience with OTP support.
 Modern dashboard with insights, recent expenses, and category breakdown.
 
 <p align="center">
-  <img src="./assets/dashboard.png" width="1000"/>
+  <img src="./assets/Dashboard.png" width="1000"/>
 </p>
 
 ---
