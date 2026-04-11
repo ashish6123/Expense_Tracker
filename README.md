@@ -111,22 +111,35 @@ Will integrate a **custom domain + verified sender identity** to ensure:
 ```
 Expense_Tracker/
 │
-├── backend/
-│   ├── routes/
-│   ├── controllers/
-│   ├── config/
-│   └── server.js
+├── assets/                 # Static images / resources (deleted/optional)
 │
-├── frontend/
-│   ├── dashboard.html
-│   ├── login.html
-│   ├── styles.css
-│   └── script.js
+├── database/               # Database-related files (SQL, configs, etc.)
 │
-├── database/
-│   └── schema.sql
+├── middleware/             # Express middlewares (auth, error handling, etc.)
 │
-└── README.md
+├── public/                 # Frontend static files (HTML, CSS, JS)
+│
+├── routes/                 # API route definitions
+│
+├── scripts/                # Utility or setup scripts
+│
+├── utils/                  # Helper functions (email, OTP, etc.)
+│
+├── .dockerignore           # Docker ignore file
+├── .gitignore              # Git ignore file
+│
+├── Dockerfile              # Production Docker config
+├── Dockerfile.dev          # Development Docker config
+│
+├── docker-compose.yml      # Docker compose (production)
+├── docker-compose.dev.yml  # Docker compose (development)
+│
+├── package.json            # Project dependencies & scripts
+├── package-lock.json       # Dependency lock file
+│
+├── server.js               # Main entry point (Express app)
+│
+└── README.md               # Project documentation
 ```
 
 ---
