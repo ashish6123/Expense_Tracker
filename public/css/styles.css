@@ -335,7 +335,7 @@ img { display: block; }
 .exp-desc { font-size: 0.875rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .exp-meta { font-size: 0.72rem; color: var(--text2); margin-top: 1px; }
 .exp-amt { font-size: 0.9rem; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
-.exp-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.exp-actions {display: flex; gap: 4px; opacity: 1; position: relative; z-index: 10;}
 .exp-row:hover .exp-actions { opacity: 1; }
 .icon-btn { padding: 5px 7px; border-radius: 6px; font-size: 13px; color: var(--text2); transition: var(--trans); }
 .icon-btn:hover { background: var(--bg3); color: var(--text); }
