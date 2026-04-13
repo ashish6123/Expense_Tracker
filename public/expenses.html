@@ -62,92 +62,210 @@
 
 <script src="/js/app.js"></script>
 <script>
-var allExp=[], cats=[];
+var allExp = [], cats = [];
 
+/* ================= LOAD CATEGORIES ================= */
 async function loadCats(){
-  var r=await api('GET','/api/categories'); cats=r.categories||[];
-  var opts='<option value="">All Categories</option>'+cats.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.name+'</option>').join('');
-  document.getElementById('f-cat').innerHTML=opts;
-  document.getElementById('exp-cat').innerHTML='<option value="">Select category</option>'+cats.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.name+'</option>').join('');
+  var r = await api('GET','/api/categories');
+  cats = r.categories || [];
+
+  var opts = '<option value="">All Categories</option>' +
+    cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+
+  document.getElementById('f-cat').innerHTML = opts;
+
+  document.getElementById('exp-cat').innerHTML =
+    '<option value="">Select category</option>' +
+    cats.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
 }
 
+/* ================= LOAD EXPENSES ================= */
 async function loadExp(){
-  var s=document.getElementById('f-start').value, e=document.getElementById('f-end').value, c=document.getElementById('f-cat').value;
-  var url='/api/expenses?limit=200'+(s?'&start_date='+s:'')+(e?'&end_date='+e:'')+(c?'&category_id='+c:'');
+  var s = document.getElementById('f-start').value;
+  var e = document.getElementById('f-end').value;
+  var c = document.getElementById('f-cat').value;
+
+  var url = '/api/expenses?limit=200'
+    + (s ? '&start_date=' + s : '')
+    + (e ? '&end_date=' + e : '')
+    + (c ? '&category_id=' + c : '');
+
   try{
-    var r=await api('GET',url); allExp=r.expenses||[]; renderExp();
-  }catch(e2){}
+    var r = await api('GET', url);
+    allExp = r.expenses || [];
+    renderExp();
+  } catch(err){
+    console.error(err);
+  }
 }
 
+/* ================= RENDER ================= */
 function renderExp(){
-  var el=document.getElementById('exp-list');
-  if(!allExp.length){ el.innerHTML='<div class="empty"><div class="empty-ico">📭</div><p>No expenses found</p></div>'; return; }
-  el.innerHTML=allExp.map(e=>`
+  var el = document.getElementById('exp-list');
+
+  if(!allExp.length){
+    el.innerHTML = `
+      <div class="empty">
+        <div class="empty-ico">📭</div>
+        <p>No expenses found</p>
+      </div>`;
+    return;
+  }
+
+  el.innerHTML = allExp.map(e => `
     <div class="exp-row">
-      <span class="exp-icon">${e.category_icon||'💰'}</span>
+      <span class="exp-icon">${e.category_icon || '💰'}</span>
       <div class="exp-info">
-        <div class="exp-desc">${e.description||e.category_name||'Expense'}</div>
-        <div class="exp-meta">${e.category_name||'Uncategorized'} · ${fmtDate(e.date)}</div>
+        <div class="exp-desc">${e.description || e.category_name || 'Expense'}</div>
+        <div class="exp-meta">${e.category_name || 'Uncategorized'} · ${fmtDate(e.date)}</div>
       </div>
       <div class="exp-amt">${fmtINR(e.amount)}</div>
       <div class="exp-actions">
         <button class="icon-btn" onclick="editExp(${e.id})" title="Edit">✏️</button>
         <button class="icon-btn del" onclick="delExp(${e.id})" title="Delete">🗑️</button>
       </div>
-    </div>`).join('');
+    </div>
+  `).join('');
 }
 
+/* ================= ADD ================= */
 function openAdd(){
-  document.getElementById('edit-id').value='';
-  document.getElementById('modal-title').textContent='Add Expense';
-  document.getElementById('exp-amt').value='';
-  document.getElementById('exp-date').value=new Date().toISOString().split('T')[0];
-  document.getElementById('exp-cat').value='';
-  document.getElementById('exp-desc').value='';
-  document.getElementById('exp-alert').className='alert hidden';
+  document.getElementById('edit-id').value = '';
+  document.getElementById('modal-title').textContent = 'Add Expense';
+
+  document.getElementById('exp-amt').value = '';
+  document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('exp-cat').value = '';
+  document.getElementById('exp-desc').value = '';
+
+  document.getElementById('exp-alert').className = 'alert hidden';
+
   openModal('exp-overlay');
 }
+
+/* ================= EDIT ================= */
 function editExp(id){
-  var e=allExp.find(x=>x.id===id); if(!e) return;
-  document.getElementById('edit-id').value=id;
-  document.getElementById('modal-title').textContent='Edit Expense';
-  document.getElementById('exp-amt').value=e.amount;
-  document.getElementById('exp-date').value=e.date.split('T')[0];
-  document.getElementById('exp-cat').value=e.category_id||'';
-  document.getElementById('exp-desc').value=e.description||'';
-  document.getElementById('exp-alert').className='alert hidden';
+  console.log("Edit clicked:", id);
+
+  var e = allExp.find(x => Number(x.id) === Number(id));
+  if(!e) return;
+
+  document.getElementById('edit-id').value = id;
+  document.getElementById('modal-title').textContent = 'Edit Expense';
+
+  document.getElementById('exp-amt').value = e.amount;
+  document.getElementById('exp-date').value = e.date.split('T')[0];
+  document.getElementById('exp-cat').value = e.category_id || '';
+  document.getElementById('exp-desc').value = e.description || '';
+
+  document.getElementById('exp-alert').className = 'alert hidden';
+
   openModal('exp-overlay');
 }
+
+/* ================= DELETE ================= */
 function delExp(id){
+  console.log("Delete clicked:", id);
+
   confirm('Delete this expense? This cannot be undone.', async ()=>{
-    try{ var r=await api('DELETE','/api/expenses/'+id); if(r.success){toast('Deleted.');loadExp();}else toast(r.message,'err'); }catch(e){toast('Delete failed.','err');}
+    console.log("Confirmed delete:", id);
+
+    try{
+      var r = await api('DELETE','/api/expenses/' + id);
+      console.log("Delete response:", r);
+
+      if(r.success){
+        toast('Deleted.');
+        loadExp();
+      } else {
+        toast(r.message || 'Delete failed', 'err');
+      }
+    } catch(err){
+      console.error(err);
+      toast('Delete failed.', 'err');
+    }
   });
 }
 
-document.getElementById('add-btn').onclick   = openAdd;
-document.getElementById('exp-x').onclick     = ()=>closeModal('exp-overlay');
-document.getElementById('exp-cancel').onclick= ()=>closeModal('exp-overlay');
-document.getElementById('exp-overlay').onclick=function(e){if(e.target===this)closeModal('exp-overlay');};
-document.getElementById('clear-btn').onclick =function(){document.getElementById('f-start').value='';document.getElementById('f-end').value='';document.getElementById('f-cat').value='';loadExp();};
-document.getElementById('f-start').onchange=loadExp;
-document.getElementById('f-end').onchange=loadExp;
-document.getElementById('f-cat').onchange=loadExp;
+/* ================= GLOBAL FIX (IMPORTANT) ================= */
+window.editExp = editExp;
+window.delExp  = delExp;
 
-document.getElementById('exp-save').onclick=async function(){
-  var id=document.getElementById('edit-id').value;
-  var amt=document.getElementById('exp-amt').value, date=document.getElementById('exp-date').value;
-  var al=document.getElementById('exp-alert'); al.className='alert hidden';
-  if(!amt||!date){al.textContent='Amount and date required.';al.className='alert alert-error';return;}
-  this.disabled=true;this.textContent='Saving…';
-  try{
-    var r=await api(id?'PUT':'POST',id?'/api/expenses/'+id:'/api/expenses',{amount:parseFloat(amt),category_id:document.getElementById('exp-cat').value||null,description:document.getElementById('exp-desc').value,date});
-    if(r.success){closeModal('exp-overlay');toast(r.message);loadExp();}
-    else{al.textContent=r.message;al.className='alert alert-error';}
-  }catch(e){al.textContent='Failed.';al.className='alert alert-error';}
-  this.disabled=false;this.textContent='Save';
+/* ================= EVENTS ================= */
+document.getElementById('add-btn').onclick = openAdd;
+document.getElementById('exp-x').onclick = ()=>closeModal('exp-overlay');
+document.getElementById('exp-cancel').onclick = ()=>closeModal('exp-overlay');
+
+document.getElementById('exp-overlay').onclick = function(e){
+  if(e.target === this) closeModal('exp-overlay');
 };
 
-initApp().then(()=>{loadCats();loadExp();});
+document.getElementById('clear-btn').onclick = function(){
+  document.getElementById('f-start').value = '';
+  document.getElementById('f-end').value = '';
+  document.getElementById('f-cat').value = '';
+  loadExp();
+};
+
+document.getElementById('f-start').onchange = loadExp;
+document.getElementById('f-end').onchange = loadExp;
+document.getElementById('f-cat').onchange = loadExp;
+
+/* ================= SAVE ================= */
+document.getElementById('exp-save').onclick = async function(){
+  var id = document.getElementById('edit-id').value;
+  var amt = document.getElementById('exp-amt').value;
+  var date = document.getElementById('exp-date').value;
+
+  var al = document.getElementById('exp-alert');
+  al.className = 'alert hidden';
+
+  if(!amt || !date){
+    al.textContent = 'Amount and date required.';
+    al.className = 'alert alert-error';
+    return;
+  }
+
+  this.disabled = true;
+  this.textContent = 'Saving…';
+
+  try{
+    var r = await api(
+      id ? 'PUT' : 'POST',
+      id ? '/api/expenses/' + id : '/api/expenses',
+      {
+        amount: parseFloat(amt),
+        category_id: document.getElementById('exp-cat').value || null,
+        description: document.getElementById('exp-desc').value,
+        date
+      }
+    );
+
+    if(r.success){
+      closeModal('exp-overlay');
+      toast(r.message || 'Saved');
+      loadExp();
+    } else {
+      al.textContent = r.message;
+      al.className = 'alert alert-error';
+    }
+
+  } catch(err){
+    console.error(err);
+    al.textContent = 'Failed.';
+    al.className = 'alert alert-error';
+  }
+
+  this.disabled = false;
+  this.textContent = 'Save';
+};
+
+/* ================= INIT ================= */
+initApp().then(()=>{
+  loadCats();
+  loadExp();
+});
+</script>
 </script>
 </body>
 </html>
