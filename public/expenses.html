@@ -1,15 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Expenses</title>
+    <meta charset="utf-8">
+    <title>Expenses Tracker</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Expenses</h1>
-    <script>
-        // Your JavaScript code here
-    </script>
-    <div id="expenses">
-        <!-- List of expenses will be populated here -->
+    <h1>Track Your Expenses</h1>
+    <div class="expense-form">
+        <form>
+            <label for="description">Description: </label>
+            <input type="text" id="description" name="description" required>
+            <label for="amount">Amount: </label>
+            <input type="number" id="amount" name="amount" required>
+            <input type="submit" value="Add Expense">
+        </form>
     </div>
+    <div class="expense-list">
+        <h2>Your Expenses</h2>
+        <ul id="expenses"></ul>
+    </div>
+    <script src="script.js"></script>  
 </body>
 </html>
