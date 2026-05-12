@@ -72,10 +72,11 @@ This project demonstrates practical, production-style engineering across the ful
 ## 🧪 Local Development
 
 1. Clone the repository
-2. Configure environment variables
-3. Start with Docker Compose (recommended) or run app + MySQL manually
-4. Initialize database using provided script
-5. Access app in browser
+2. Install dependencies: `npm install`
+3. Configure environment variables in `.env`
+4. Start with Docker Compose: `docker-compose up -d` (or run app + MySQL manually)
+5. Initialize database: `npm run init-db`
+6. Start server: `npm start`
 
 ---
 
@@ -93,7 +94,7 @@ This project demonstrates practical, production-style engineering across the ful
 - Add complete test coverage (unit + integration)
 - Add linting/format enforcement in CI
 - Complete budgets feature wiring
-- Resolve email provider configuration consistency
+- Consolidate email delivery configuration for more reliable OTP performance
 - Remove/modernize any legacy frontend pages
 
 ---
@@ -101,3 +102,5 @@ This project demonstrates practical, production-style engineering across the ful
 ## 👨‍💻 Author Note
 
 This project is intended to showcase full-stack development capability, secure backend design, and practical product thinking in a real-world style application.
+
+- GitHub: https://github.com/ashish6123
