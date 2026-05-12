@@ -1,233 +1,103 @@
-# 💸 Expense Tracker
+# Expense Tracker Pro
 
-A modern, full-stack **Expense Tracking Web App** built with a focus on **clean UI, real-world features, and production readiness**.
-
-🔗 **Live App:** https://expense-tracker-awlz.onrender.com/
-
----
-
-## 🚀 Overview
-
-Expense Tracker Pro helps users manage their daily expenses with a sleek dashboard, category insights, and authentication system.
-
-This project was built as a **full-stack capstone project** with real-world considerations like authentication, email verification, and deployment.
+A full-stack expense management application built with **Node.js, Express, MySQL, and vanilla JavaScript**.  
+It enables users to securely manage transactions, categorize spending, and view actionable financial insights.
 
 ---
 
-## ✨ Features
+## 🚀 Why This Project Stands Out
 
-* 🔐 User Authentication (Login / Register)
-* 📧 Email OTP Verification (Multiple providers tested)
-* 📊 Interactive Dashboard
-* 💰 Expense Tracking
-* 📁 Category-wise Breakdown
-* 📈 Analytics-ready structure
-* 🌙 Modern Dark UI
-* 📱 Responsive Design
-* ☁️ Deployed on Render
+This project demonstrates practical, production-style engineering across the full stack:
+
+- End-to-end feature ownership (backend APIs, DB schema, frontend UX, deployment setup)
+- Secure authentication lifecycle (register, verify, login, password reset)
+- Security hardening with modern middleware and abuse protection
+- Analytics workflows from SQL aggregations to visual summaries
+- Dockerized setup for fast local onboarding and deployment readiness
 
 ---
 
-## 🖥️ UI Preview
+## 🧱 Tech Stack
 
-### 🔑 Authentication Page
-
-Clean and minimal login experience with OTP support.
-
-<p align="center">
-  <img src="./assets/Signin_page.png" width="600"/>
-</p>
+- **Backend:** Node.js, Express
+- **Database:** MySQL
+- **Frontend:** HTML, CSS, JavaScript (vanilla)
+- **Security/Auth:** JWT, bcrypt, httpOnly cookies, Helmet, rate limiting
+- **DevOps:** Docker, Docker Compose, environment-based configuration
 
 ---
 
-### 📊 Dashboard
+## ✨ Core Features
 
-Modern dashboard with insights, recent expenses, and category breakdown.
-
-<p align="center">
-  <img src="./assets/Dashboard.png.png" width="1000"/>
-</p>
-
----
-
-## 🛠️ Tech Stack
-
-### Frontend
-
-* HTML
-* CSS (Custom styling, no heavy frameworks)
-* JavaScript (Vanilla)
-
-### Backend
-
-* Node.js
-* Express.js
-
-### Database
-
-* MySQL
-
-### Email Services (Experimented)
-
-* Nodemailer (Gmail SMTP - for local testing)
-* Resend (Faced free-tier limitations)
-* SendGrid (Working but sometimes delayed / spam issues)
-
-### Deployment
-
-* Render
+- User authentication and account security flows
+- Expense CRUD and category-based organization
+- Analytics summaries (monthly totals, category breakdowns, trends)
+- Responsive UI with dark-mode-friendly styling
+- Health-check endpoint for runtime monitoring
 
 ---
 
-## ⚙️ Key Engineering Decisions
+## 🏗️ High-Level Architecture
 
-### 📧 Email Delivery Challenges
-
-Email verification was implemented with real-world constraints:
-
-* **Nodemailer (Gmail SMTP)**
-  ✔️ Works well locally
-  ❌ Not reliable for production
-
-* **Resend**
-  ❌ Free tier limitations affected OTP delivery
-
-* **SendGrid**
-  ✔️ Works but
-  ⚠️ Occasional delays
-  ⚠️ Emails may land in spam
-
-👉 **Future Improvement:**
-Will integrate a **custom domain + verified sender identity** to ensure:
-
-* Better deliverability
-* No spam issues
-* Faster OTP delivery
+- `server.js` — app bootstrap, middleware, static hosting
+- `routes/auth.js` — authentication and account-related APIs
+- `routes/expenses.js` — expense operations
+- `routes/categories.js` — category management
+- `database/connection.js` — MySQL connection setup
+- `scripts/init-database.js` — schema/bootstrap scripts
+- `public/` — frontend pages and static assets
+- `public/js/app.js` — shared client-side helpers
 
 ---
 
-## 📂 Project Structure
+## 🔐 Security Practices
 
-```
-Expense_Tracker/
-│
-├── assets/                 # Static images / resources (deleted/optional)
-│
-├── database/               # Database-related files (SQL, configs, etc.)
-│
-├── middleware/             # Express middlewares (auth, error handling, etc.)
-│
-├── public/                 # Frontend static files (HTML, CSS, JS)
-│
-├── routes/                 # API route definitions
-│
-├── scripts/                # Utility or setup scripts
-│
-├── utils/                  # Helper functions (email, OTP, etc.)
-│
-├── .dockerignore           # Docker ignore file
-├── .gitignore              # Git ignore file
-│
-├── Dockerfile              # Production Docker config
-├── Dockerfile.dev          # Development Docker config
-│
-├── docker-compose.yml      # Docker compose (production)
-├── docker-compose.dev.yml  # Docker compose (development)
-│
-├── package.json            # Project dependencies & scripts
-├── package-lock.json       # Dependency lock file
-│
-├── server.js               # Main entry point (Express app)
-│
-└── README.md               # Project documentation
-```
+- Password hashing with bcrypt
+- JWT-based session/auth handling
+- httpOnly cookie usage
+- Helmet-based security headers (including CSP)
+- Rate limiting for abuse-prone endpoints
+- Account recovery flows designed to reduce user enumeration risk
 
 ---
 
-## 🚀 Getting Started
+## 📈 Product/Business Value
 
-### 1️⃣ Clone the Repository
-
-```bash
-git clone https://github.com/ashish6123/Expense_Tracker.git
-cd Expense_Tracker
-```
-
-### 2️⃣ Install Dependencies
-
-```bash
-npm install
-```
-
-### 3️⃣ Setup Environment Variables
-
-Create a `.env` file:
-
-```
-PORT=5000
-DB_HOST=your_host
-DB_USER=your_user
-DB_PASSWORD=your_password
-DB_NAME=your_db
-
-EMAIL_USER=your_email
-EMAIL_PASS=your_password
-```
-
-### 4️⃣ Run the Server
-
-```bash
-npm start
-```
+- Improves personal finance visibility with structured tracking
+- Encourages user retention via intuitive UX and analytics feedback
+- Built as a foundation for future features (budgets, alerts, advanced reports)
 
 ---
 
-## 🧠 What I Learned
+## 🧪 Local Development
 
-* Building a **complete full-stack app from scratch**
-* Handling **authentication + OTP flows**
-* Debugging **real-world email delivery issues**
-* Designing a **clean UI without heavy frameworks**
-* Deploying and managing a live production app
-
----
-
-## 🔮 Future Improvements
-
-* ✅ Domain-based email authentication (SPF, DKIM)
-* 📊 Advanced analytics (charts & trends)
-* 🔔 Notifications & reminders
-* 📱 Progressive Web App (PWA)
-* 🔐 JWT + refresh token system
-* 💳 Budgeting & savings goals
+1. Clone the repository
+2. Configure environment variables
+3. Start with Docker Compose (recommended) or run app + MySQL manually
+4. Initialize database using provided script
+5. Access app in browser
 
 ---
 
-## 🤝 Contributing
+## ✅ Production Readiness Signals
 
-Contributions are welcome! Feel free to fork the repo and submit a PR.
-
----
-
-## ⭐ Support
-
-If you like this project:
-
-* ⭐ Star the repo
-* 🍴 Fork it
-* 📢 Share it
+- Containerized application runtime
+- Configuration via environment variables
+- Health endpoint for monitoring and uptime checks
+- Modular route structure for maintainability and scaling
 
 ---
 
-## 👨‍💻 Author
+## 🛣️ Next Improvements
 
-**Ashish Ranjan**
-
+- Add complete test coverage (unit + integration)
+- Add linting/format enforcement in CI
+- Complete budgets feature wiring
+- Resolve email provider configuration consistency
+- Remove/modernize any legacy frontend pages
 
 ---
 
-## 💬 Final Note
+## 👨‍💻 Author Note
 
-This project reflects **real-world problem solving**, not just coding — especially handling **email delivery challenges in production environments**.
-
-More improvements are coming 🚀
+This project is intended to showcase full-stack development capability, secure backend design, and practical product thinking in a real-world style application.
