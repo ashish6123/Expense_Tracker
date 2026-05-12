@@ -94,8 +94,8 @@ This project demonstrates practical, production-style engineering across the ful
 - Add complete test coverage (unit + integration)
 - Add linting/format enforcement in CI
 - Complete budgets feature wiring
-- Consolidate email delivery configuration for more reliable OTP performance
-- Remove/modernize any legacy frontend pages
+- Implement custom domain email auth (SPF/DKIM/DMARC) to improve OTP deliverability
+- Refactor older frontend screens to a unified, responsive dashboard-style UI
 
 ---
 
