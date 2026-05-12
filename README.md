@@ -103,4 +103,4 @@ This project demonstrates practical, production-style engineering across the ful
 
 This project is intended to showcase full-stack development capability, secure backend design, and practical product thinking in a real-world style application.
 
-- GitHub: https://github.com/ashish6123
+Connect on GitHub: https://github.com/ashish6123
