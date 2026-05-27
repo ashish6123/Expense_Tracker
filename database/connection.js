@@ -1,6 +1,8 @@
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+const isTiDB = (process.env.DB_HOST || '').includes('tidbcloud.com');
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -12,6 +14,8 @@ const pool = mysql.createPool({
   queueLimit: 0,
   connectTimeout: 10000,
   timezone: '+05:30',
+  // TiDB Cloud requires SSL; harmless on local MySQL
+  ssl: isTiDB ? { rejectUnauthorized: true } : undefined,
 });
 
 // Test connection on startup
