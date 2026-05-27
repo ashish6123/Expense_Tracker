@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
+const REFRESH_EXPIRES_DAYS = 30;
 const db = require('../database/connection');
 const sendOTPEmail = require('../utils/email'); 
 const authMiddleware = require('../middleware/auth');
@@ -49,8 +50,28 @@ const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+const refreshCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000,
+  path: '/api/auth/refresh',
+};
+
+async function issueTokens(res, user) {
+  const accessToken  = generateToken(user);
+  const refreshToken = uuidv4();
+  const expiresAt    = new Date(Date.now() + REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
+  await db.query(
+    'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+    [user.id, refreshToken, expiresAt]
+  );
+  res.cookie('token', accessToken, cookieOptions);
+  res.cookie('refresh_token', refreshToken, refreshCookieOptions);
+  return accessToken;
+}
 
 const DEFAULT_CATEGORIES = [
   { name: 'Food & Dining', color: '#ef4444', icon: '🍔' },
@@ -134,10 +155,8 @@ router.post('/verify-email', async (req, res) => {
     await db.query('UPDATE users SET is_verified = TRUE WHERE email = ?', [email.toLowerCase().trim()]);
 
     const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase().trim()]);
-    const user = users[0];
-    const token = generateToken(user);
-
-    res.cookie('token', token, cookieOptions);
+    const user  = users[0];
+    const token = await issueTokens(res, user);
     res.json({
       success: true,
       message: 'Email verified successfully! Welcome to Expense Tracker Pro.',
@@ -223,8 +242,7 @@ router.post('/login', async (req, res) => {
       });
 
     clearLoginAttempts(email.toLowerCase().trim());
-    const token = generateToken(user);
-    res.cookie('token', token, cookieOptions);
+    const token = await issueTokens(res, user);
     res.json({
       success: true,
       message: 'Login successful!',
@@ -305,9 +323,41 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// ─── REFRESH TOKEN ────────────────────────────────────────────────────────────
+router.post('/refresh', async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refresh_token;
+    if (!refreshToken)
+      return res.status(401).json({ success: false, message: 'No refresh token.' });
+
+    const [rows] = await db.query(
+      'SELECT * FROM refresh_tokens WHERE token = ? AND expires_at > NOW()',
+      [refreshToken]
+    );
+    if (!rows.length) {
+      res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
+      return res.status(401).json({ success: false, message: 'Refresh token expired or invalid.' });
+    }
+
+    const [users] = await db.query('SELECT * FROM users WHERE id = ?', [rows[0].user_id]);
+    if (!users.length) return res.status(401).json({ success: false, message: 'User not found.' });
+
+    // Rotate: delete old, issue new
+    await db.query('DELETE FROM refresh_tokens WHERE id = ?', [rows[0].id]);
+    const newToken = await issueTokens(res, users[0]);
+    res.json({ success: true, token: newToken });
+  } catch (err) {
+    console.error('Refresh error:', err);
+    res.status(500).json({ success: false, message: 'Token refresh failed.' });
+  }
+});
+
 // ─── LOGOUT ───────────────────────────────────────────────────────────────────
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+  const rt = req.cookies?.refresh_token;
+  if (rt) await db.query('DELETE FROM refresh_tokens WHERE token = ?', [rt]).catch(() => {});
   res.clearCookie('token');
+  res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
   res.json({ success: true, message: 'Logged out successfully.' });
 });
 

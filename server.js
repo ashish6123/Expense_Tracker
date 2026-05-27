@@ -4,7 +4,8 @@ const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
-const path = require('path');
+const path   = require('path');
+const logger = require('./utils/logger');
 
 // ─── Startup env validation ───────────────────────────────────────────────────
 const REQUIRED_ENV = ['JWT_SECRET', 'DB_HOST', 'DB_USER', 'DB_NAME'];
@@ -60,14 +61,16 @@ const apiLimiter = rateLimit({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
+app.use(logger.middleware);
 
 // ─── Static Files ─────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth', authLimiter, require('./routes/auth'));
-app.use('/api/expenses', apiLimiter, require('./routes/expenses'));
-app.use('/api/categories', apiLimiter, require('./routes/categories'));
+app.use('/api/auth',       authLimiter, require('./routes/auth'));
+app.use('/api/expenses',  apiLimiter,  require('./routes/expenses'));
+app.use('/api/categories',apiLimiter,  require('./routes/categories'));
+app.use('/api/budgets',   apiLimiter,  require('./routes/budgets'));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

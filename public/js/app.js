@@ -2,6 +2,63 @@
    app.js — shared helpers for all app pages
    ============================================================ */
 
+/* ── Demo mode (activated via ?demo=1 in URL) ──────── */
+const _DEMO = sessionStorage.getItem('demo') === '1' || new URLSearchParams(location.search).get('demo') === '1';
+const _DEMO_USER = { id:0, name:'Ashish Ranjan', email:'ashish@example.com', avatar:'#6366f1' };
+const _DEMO_CATS = [
+  {id:1,name:'Food & Dining',color:'#ef4444',icon:'🍔',is_default:true},
+  {id:2,name:'Transportation',color:'#3b82f6',icon:'🚗',is_default:true},
+  {id:3,name:'Shopping',color:'#8b5cf6',icon:'🛍️',is_default:true},
+  {id:4,name:'Entertainment',color:'#f59e0b',icon:'🎬',is_default:true},
+  {id:5,name:'Healthcare',color:'#10b981',icon:'🏥',is_default:true},
+  {id:6,name:'Bills & Utilities',color:'#6b7280',icon:'⚡',is_default:true}
+];
+const _DEMO_EXPENSES = [
+  {id:1,amount:450,description:'Lunch at Cafe',category_name:'Food & Dining',category_icon:'🍔',category_id:1,date:'2025-05-26'},
+  {id:2,amount:1200,description:'Uber ride to office',category_name:'Transportation',category_icon:'🚗',category_id:2,date:'2025-05-25'},
+  {id:3,amount:3500,description:'Amazon order',category_name:'Shopping',category_icon:'🛍️',category_id:3,date:'2025-05-24'},
+  {id:4,amount:800,description:'Movie tickets',category_name:'Entertainment',category_icon:'🎬',category_id:4,date:'2025-05-23'},
+  {id:5,amount:320,description:'Dinner with friends',category_name:'Food & Dining',category_icon:'🍔',category_id:1,date:'2025-05-22'},
+  {id:6,amount:250,description:'Auto rickshaw',category_name:'Transportation',category_icon:'🚗',category_id:2,date:'2025-05-21'},
+  {id:7,amount:2200,description:'Electricity bill',category_name:'Bills & Utilities',category_icon:'⚡',category_id:6,date:'2025-05-20'},
+  {id:8,amount:650,description:'Doctor visit',category_name:'Healthcare',category_icon:'🏥',category_id:5,date:'2025-05-19'},
+  {id:9,amount:980,description:'Zara shirt',category_name:'Shopping',category_icon:'🛍️',category_id:3,date:'2025-05-18'},
+  {id:10,amount:180,description:'Tea & snacks',category_name:'Food & Dining',category_icon:'🍔',category_id:1,date:'2025-05-17'}
+];
+const _DEMO_SUMMARY = {
+  monthly:{total:24500,count:12},allTime:{total:182000,count:87},
+  byCategory:[
+    {name:'Food & Dining',color:'#ef4444',icon:'🍔',total:8200,count:5},
+    {name:'Transportation',color:'#3b82f6',icon:'🚗',total:4800,count:3},
+    {name:'Shopping',color:'#8b5cf6',icon:'🛍️',total:6500,count:2},
+    {name:'Entertainment',color:'#f59e0b',icon:'🎬',total:5000,count:2},
+    {name:'Healthcare',color:'#10b981',icon:'🏥',total:650,count:1},
+    {name:'Bills & Utilities',color:'#6b7280',icon:'⚡',total:2200,count:1}
+  ],
+  monthlyTrend:[
+    {month:12,year:2024,total:18000},{month:1,year:2025,total:22000},
+    {month:2,year:2025,total:19500},{month:3,year:2025,total:27000},
+    {month:4,year:2025,total:21000},{month:5,year:2025,total:24500}
+  ]
+};
+if (_DEMO) {
+  window.fetch = async (url) => ({
+    ok:true, status:200,
+    json: async () => {
+      if (url.includes('/api/auth/me'))        return { success:true, user:_DEMO_USER };
+      if (url.includes('analytics/summary'))  return { success:true, summary:_DEMO_SUMMARY };
+      if (url.includes('/api/expenses'))       return { success:true, expenses:_DEMO_EXPENSES };
+      if (url.includes('/api/categories'))     return { success:true, categories:_DEMO_CATS };
+      if (url.includes('/api/budgets'))        return { success:true, budgets:[
+        {id:1,category_id:1,category_name:'Food & Dining',category_icon:'🍔',category_color:'#ef4444',amount:6000,month:5,year:2025,spent:8200},
+        {id:2,category_id:2,category_name:'Transportation',category_icon:'🚗',category_color:'#3b82f6',amount:5000,month:5,year:2025,spent:4800},
+        {id:3,category_id:3,category_name:'Shopping',category_icon:'🛍️',category_color:'#8b5cf6',amount:5000,month:5,year:2025,spent:6500}
+      ]};
+      return { success:true };
+    }
+  });
+}
+
 /* ── Auth guard ─────────────────────────── */
 async function initApp() {
   try {
@@ -21,8 +78,8 @@ function _fillSidebar(u) {
   const em = _el('s-em');  if (em) em.textContent = u.email;
 }
 
-/* ── API helper ─────────────────────────── */
-async function api(method, url, body) {
+/* ── API helper (auto-refresh on 401) ───── */
+async function api(method, url, body, _retry) {
   const opts = {
     method,
     credentials: 'include',
@@ -31,6 +88,12 @@ async function api(method, url, body) {
   if (body) opts.body = JSON.stringify(body);
   const res  = await fetch(url, opts);
   const data = await res.json();
+  if (res.status === 401 && !_retry) {
+    // Try refreshing the access token once
+    const rfRes = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
+    if (rfRes.ok) return api(method, url, body, true);
+    location.href = '/'; throw new Error('Unauth');
+  }
   if (res.status === 401) { location.href = '/'; throw new Error('Unauth'); }
   return data;
 }

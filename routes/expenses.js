@@ -1,7 +1,19 @@
-const express = require('express');
-const router = express.Router();
-const db = require('../database/connection');
+const express   = require('express');
+const router    = express.Router();
+const { body, validationResult } = require('express-validator');
+const db            = require('../database/connection');
 const authMiddleware = require('../middleware/auth');
+
+function sanitizeStr(s) {
+  if (typeof s !== 'string') return s;
+  return s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').trim();
+}
+function validate(req, res, next) {
+  const errors = validationResult(req);
+  if (!errors.isEmpty())
+    return res.status(400).json({ success: false, message: errors.array()[0].msg });
+  next();
+}
 
 router.use(authMiddleware);
 
@@ -32,17 +44,18 @@ router.get('/', async (req, res) => {
 });
 
 // ─── ADD EXPENSE ──────────────────────────────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/',
+  body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number.'),
+  body('date').isDate().withMessage('A valid date is required.'),
+  body('description').optional().isLength({ max: 500 }).withMessage('Description too long (max 500 chars).'),
+  validate,
+  async (req, res) => {
   try {
     const { amount, category_id, description, date } = req.body;
-    if (!amount || !date)
-      return res.status(400).json({ success: false, message: 'Amount and date are required.' });
-    if (isNaN(amount) || parseFloat(amount) <= 0)
-      return res.status(400).json({ success: false, message: 'Amount must be a positive number.' });
 
     const [result] = await db.query(
       'INSERT INTO expenses (user_id, amount, category_id, description, date) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, parseFloat(amount), category_id || null, description?.trim() || null, date]
+      [req.user.id, parseFloat(amount), category_id || null, sanitizeStr(description) || null, date]
     );
 
     const [expenses] = await db.query(
@@ -54,10 +67,15 @@ router.post('/', async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to add expense.' });
   }
-});
+});  // end POST /
 
 // ─── UPDATE EXPENSE ───────────────────────────────────────────────────────────
-router.put('/:id', async (req, res) => {
+router.put('/:id',
+  body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number.'),
+  body('date').isDate().withMessage('A valid date is required.'),
+  body('description').optional().isLength({ max: 500 }).withMessage('Description too long.'),
+  validate,
+  async (req, res) => {
   try {
     const { amount, category_id, description, date } = req.body;
     const [existing] = await db.query('SELECT id FROM expenses WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
@@ -66,7 +84,7 @@ router.put('/:id', async (req, res) => {
 
     await db.query(
       'UPDATE expenses SET amount = ?, category_id = ?, description = ?, date = ? WHERE id = ? AND user_id = ?',
-      [parseFloat(amount), category_id || null, description?.trim() || null, date, req.params.id, req.user.id]
+      [parseFloat(amount), category_id || null, sanitizeStr(description) || null, date, req.params.id, req.user.id]
     );
 
     const [expenses] = await db.query(

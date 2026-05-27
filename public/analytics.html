@@ -47,6 +47,36 @@
           <div id="pie-list" class="pie-list"></div>
         </div>
       </div>
+
+      <!-- Budget Alerts -->
+      <div class="card" style="margin-top:14px">
+        <div class="card-head">
+          <h3>Budget Alerts</h3>
+          <button class="btn btn-primary btn-sm" id="set-budget-btn">+ Set Budget</button>
+        </div>
+        <div id="budget-list" style="padding:14px 18px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Set Budget Modal -->
+<div class="overlay hidden" id="budget-overlay">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-head">
+      <h3>Set Monthly Budget</h3>
+      <button class="modal-x btn" id="budget-x">✕</button>
+    </div>
+    <div id="budget-alert" class="alert hidden"></div>
+    <div class="field"><label>Category</label>
+      <select id="b-cat"><option value="">Select category</option></select>
+    </div>
+    <div class="field"><label>Monthly Limit (₹)</label>
+      <input type="number" id="b-amt" placeholder="e.g. 5000" min="1" step="1">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" id="budget-cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="budget-save">Save Budget</button>
     </div>
   </div>
 </div>
@@ -65,15 +95,16 @@ async function load(){
     var r=await api('GET','/api/expenses/analytics/summary?month='+cm+'&year='+cy);
     var s=r.summary;
 
-    // Bar chart
+    // Bar chart — use pixel heights (120px usable area) so percentages work correctly
     var trend=s.monthlyTrend||[];
     var bc=document.getElementById('bar-chart');
     if(!trend.length){ bc.innerHTML='<div class="empty"><p>Not enough data yet</p></div>'; }
     else{
       var max=Math.max(...trend.map(t=>parseFloat(t.total)),1);
+      var BAR_H=120;
       bc.innerHTML='<div class="bar-chart">'+trend.map(t=>{
-        var pct=(parseFloat(t.total)/max*100).toFixed(1);
-        return '<div class="bar-item"><div class="bar-val">'+fmtINRShort(t.total)+'</div><div class="bar-body" style="height:'+pct+'%"></div><div class="bar-lbl">'+MONTHS_SHORT[t.month-1]+'</div></div>';
+        var px=Math.max(4,Math.round(parseFloat(t.total)/max*BAR_H));
+        return '<div class="bar-item"><div class="bar-val">'+fmtINRShort(t.total)+'</div><div class="bar-body" style="height:'+px+'px"></div><div class="bar-lbl">'+MONTHS_SHORT[t.month-1]+'</div></div>';
       }).join('')+'</div>';
     }
 
@@ -89,8 +120,86 @@ async function load(){
   }catch(e){}
 }
 
+var allCats = [];
+
+async function loadBudgets() {
+  try {
+    var rb = await api('GET', '/api/budgets?month='+cm+'&year='+cy);
+    var rs = await api('GET', '/api/expenses/analytics/summary?month='+cm+'&year='+cy);
+    var spent = {};
+    (rs.summary?.byCategory||[]).forEach(c=>{ spent[c.name]=parseFloat(c.total)||0; });
+
+    var bl = document.getElementById('budget-list');
+    var budgets = rb.budgets||[];
+    if(!budgets.length){
+      bl.innerHTML='<div style="color:var(--text3);font-size:0.85rem;padding:8px 0">No budgets set for this month. Click "+ Set Budget" to add one.</div>';
+      return;
+    }
+    bl.innerHTML = budgets.map(function(b){
+      var s = spent[b.category_name]||0;
+      var pct = Math.min(100,(s/parseFloat(b.amount)*100)).toFixed(0);
+      var over = s > parseFloat(b.amount);
+      var color = over ? 'var(--red)' : pct>=80 ? '#f59e0b' : 'var(--green)';
+      var status = over ? '🚨 Over budget!' : pct>=80 ? '⚠️ Near limit' : '✅ On track';
+      return '<div style="margin-bottom:16px">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'+
+          '<span style="font-size:0.9rem;font-weight:600">'+(b.category_icon||'💰')+' '+b.category_name+'</span>'+
+          '<div style="display:flex;align-items:center;gap:12px">'+
+            '<span style="font-size:0.78rem;color:'+color+'">'+status+'</span>'+
+            '<span style="font-size:0.8rem;color:var(--text2)">'+fmtINR(s)+' / '+fmtINR(b.amount)+'</span>'+
+            '<button class="icon-btn del" onclick="deleteBudget('+b.id+')" title="Remove budget" style="font-size:12px;padding:3px 6px">✕</button>'+
+          '</div>'+
+        '</div>'+
+        '<div style="height:6px;background:var(--bg3);border-radius:3px;overflow:hidden">'+
+          '<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:3px;transition:width 0.5s"></div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  } catch(e){}
+}
+
+async function deleteBudget(id){
+  confirm('Remove this budget?', async function(){
+    try{
+      var r = await api('DELETE','/api/budgets/'+id);
+      if(r.success){toast('Budget removed.');loadBudgets();}
+      else toast(r.message,'err');
+    }catch(e){toast('Failed.','err');}
+  });
+}
+
+// Budget modal
+document.getElementById('set-budget-btn').onclick = async function(){
+  if(!allCats.length){
+    var rc=await api('GET','/api/categories'); allCats=rc.categories||[];
+    document.getElementById('b-cat').innerHTML='<option value="">Select category</option>'+
+      allCats.map(c=>'<option value="'+c.id+'">'+c.icon+' '+c.name+'</option>').join('');
+  }
+  document.getElementById('budget-alert').className='alert hidden';
+  document.getElementById('b-amt').value='';
+  openModal('budget-overlay');
+};
+document.getElementById('budget-x').onclick      = ()=>closeModal('budget-overlay');
+document.getElementById('budget-cancel').onclick  = ()=>closeModal('budget-overlay');
+document.getElementById('budget-overlay').onclick = function(e){if(e.target===this)closeModal('budget-overlay');};
+
+document.getElementById('budget-save').onclick = async function(){
+  var cat_id = document.getElementById('b-cat').value;
+  var amt    = document.getElementById('b-amt').value;
+  var al     = document.getElementById('budget-alert');
+  al.className = 'alert hidden';
+  if(!cat_id||!amt){al.textContent='Please select a category and enter an amount.';al.className='alert alert-error';return;}
+  this.disabled=true; this.textContent='Saving…';
+  try{
+    var r = await api('POST','/api/budgets',{category_id:parseInt(cat_id),amount:parseFloat(amt),month:cm,year:cy});
+    if(r.success){closeModal('budget-overlay');toast('Budget saved!');loadBudgets();}
+    else{al.textContent=r.message;al.className='alert alert-error';}
+  }catch(e){al.textContent='Failed.';al.className='alert alert-error';}
+  this.disabled=false; this.textContent='Save Budget';
+};
+
 setLbl();
-initApp().then(load);
+initApp().then(function(){ load(); loadBudgets(); });
 </script>
 </body>
 </html>

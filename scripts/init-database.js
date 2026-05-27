@@ -78,6 +78,19 @@ async function initDatabase() {
       );
     `);
 
+    // Refresh tokens table
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        token VARCHAR(512) NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_token (token)
+      );
+    `);
+
     // Budgets table
     await connection.query(`
       CREATE TABLE IF NOT EXISTS budgets (
