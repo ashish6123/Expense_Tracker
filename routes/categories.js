@@ -42,6 +42,8 @@ router.delete('/:id', async (req, res) => {
     await db.query('DELETE FROM categories WHERE id = ? AND user_id = ?', [req.params.id, req.user.id]);
     res.json({ success: true, message: 'Category deleted.' });
   } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED')
+      return res.status(409).json({ success: false, message: 'Category is in use by expenses. Remove those expenses first.' });
     res.status(500).json({ success: false, message: 'Failed to delete category.' });
   }
 });

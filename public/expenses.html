@@ -1,25 +1,282 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Expenses Tracker</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Expenses — Expense Tracker Pro</title>
+  <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <h1>Track Your Expenses</h1>
-    <div class="expense-form">
-        <form>
-            <label for="description">Description: </label>
-            <input type="text" id="description" name="description" required>
-            <label for="amount">Amount: </label>
-            <input type="number" id="amount" name="amount" required>
-            <input type="submit" value="Add Expense">
-        </form>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="sidebar-head-icon">💰</span>
+      <span class="sidebar-head-name">ExpenseTracker</span>
+      <button class="sidebar-x btn">✕</button>
     </div>
-    <div class="expense-list">
-        <h2>Your Expenses</h2>
-        <ul id="expenses"></ul>
+    <nav class="sidebar-nav">
+      <a href="/dashboard.html"  class="nav-link"><span class="nav-icon">📊</span>Dashboard</a>
+      <a href="/expenses.html"   class="nav-link active"><span class="nav-icon">📋</span>Expenses</a>
+      <a href="/analytics.html"  class="nav-link"><span class="nav-icon">📈</span>Analytics</a>
+      <a href="/categories.html" class="nav-link"><span class="nav-icon">🏷️</span>Categories</a>
+      <a href="/profile.html"    class="nav-link"><span class="nav-icon">👤</span>Profile</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <div class="user-av" id="s-av"></div>
+        <div><div class="user-nm" id="s-nm"></div><div class="user-em" id="s-em"></div></div>
+      </div>
+      <button class="btn-logout" id="logout-btn">Sign out</button>
     </div>
-    <script src="script.js"></script>  
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="topbar-hamburger btn">☰</button>
+      <span class="topbar-title">Expenses</span>
+      <div class="topbar-right" style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" id="export-btn">⬇ Export CSV</button>
+        <button class="btn btn-primary btn-sm" id="add-btn">+ Add Expense</button>
+      </div>
+    </header>
+
+    <div class="page">
+      <div class="filter-bar">
+        <input type="text" id="f-search" placeholder="Search description…" style="flex:1;min-width:160px">
+        <select id="f-cat"><option value="">All categories</option></select>
+        <input type="date" id="f-start" title="From date">
+        <input type="date" id="f-end" title="To date">
+        <button class="btn btn-outline btn-sm" id="f-clear">Clear</button>
+      </div>
+
+      <div class="card">
+        <div id="exp-list"></div>
+        <div id="pagination" style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:1px solid var(--border)">
+          <button class="btn btn-outline btn-sm" id="pg-prev" disabled>‹ Prev</button>
+          <span id="pg-info" style="font-size:0.8rem;color:var(--text2)"></span>
+          <button class="btn btn-outline btn-sm" id="pg-next" disabled>Next ›</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / Edit Expense Modal -->
+<div class="overlay hidden" id="exp-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">Add Expense</h3>
+      <button class="modal-x btn" id="exp-x">✕</button>
+    </div>
+    <div id="exp-alert" class="alert hidden"></div>
+    <div class="two-field">
+      <div class="field"><label>Amount (₹)</label><input type="number" id="exp-amt" placeholder="0.00" min="0.01" step="0.01"></div>
+      <div class="field"><label>Date</label><input type="date" id="exp-date"></div>
+    </div>
+    <div class="field"><label>Category</label>
+      <select id="exp-cat"><option value="">Select category</option></select>
+    </div>
+    <div class="field"><label>Description</label>
+      <input type="text" id="exp-desc" placeholder="What was this for?">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" id="exp-cancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="exp-save">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+var PAGE_SIZE = 50;
+var allExpenses = [];
+var filtered   = [];
+var pageOffset = 0;
+var editId     = null;
+var cats       = [];
+
+async function loadCats() {
+  var r = await api('GET', '/api/categories');
+  cats = r.categories || [];
+  var opts = '<option value="">All categories</option>' +
+    cats.map(c => '<option value="' + c.id + '">' + c.icon + ' ' + c.name + '</option>').join('');
+  document.getElementById('f-cat').innerHTML = opts;
+  document.getElementById('exp-cat').innerHTML =
+    '<option value="">Select category</option>' +
+    cats.map(c => '<option value="' + c.id + '">' + c.icon + ' ' + c.name + '</option>').join('');
+}
+
+async function loadExpenses() {
+  var list = document.getElementById('exp-list');
+  list.innerHTML = '<div class="empty"><div class="empty-ico">⏳</div><p>Loading…</p></div>';
+  try {
+    var cat   = document.getElementById('f-cat').value;
+    var start = document.getElementById('f-start').value;
+    var end   = document.getElementById('f-end').value;
+    var q = '/api/expenses?limit=10000&offset=0';
+    if (cat)   q += '&category_id=' + cat;
+    if (start) q += '&start_date=' + start;
+    if (end)   q += '&end_date=' + end;
+
+    var r = await api('GET', q);
+    allExpenses = r.expenses || [];
+    applyFilter();
+  } catch(e) {
+    list.innerHTML = '<div class="empty"><p>Failed to load expenses.</p></div>';
+  }
+}
+
+function applyFilter() {
+  var search = document.getElementById('f-search').value.trim().toLowerCase();
+  filtered = search
+    ? allExpenses.filter(e =>
+        (e.description || '').toLowerCase().includes(search) ||
+        (e.category_name || '').toLowerCase().includes(search))
+    : allExpenses.slice();
+  pageOffset = 0;
+  renderPage();
+}
+
+function renderPage() {
+  var list  = document.getElementById('exp-list');
+  var slice = filtered.slice(pageOffset, pageOffset + PAGE_SIZE);
+
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-ico">📭</div><p>No expenses found</p></div>';
+    document.getElementById('pagination').style.display = 'none';
+    return;
+  }
+  document.getElementById('pagination').style.display = 'flex';
+
+  list.innerHTML = slice.map(e => '<div class="exp-row">' +
+    '<span class="exp-icon">' + (e.category_icon || '💰') + '</span>' +
+    '<div class="exp-info">' +
+      '<div class="exp-desc">' + (e.description || e.category_name || 'Expense') + '</div>' +
+      '<div class="exp-meta">' + (e.category_name || 'Uncategorized') + ' · ' + fmtDate(e.date) + '</div>' +
+    '</div>' +
+    '<div class="exp-amt">' + fmtINR(e.amount) + '</div>' +
+    '<div class="exp-actions">' +
+      '<button class="icon-btn" onclick="openEdit(' + e.id + ')" title="Edit">✏️</button>' +
+      '<button class="icon-btn del" onclick="delExp(' + e.id + ')" title="Delete">🗑️</button>' +
+    '</div>' +
+  '</div>').join('');
+
+  var start = pageOffset + 1;
+  var end   = Math.min(pageOffset + PAGE_SIZE, filtered.length);
+  document.getElementById('pg-info').textContent = start + '–' + end + ' of ' + filtered.length;
+  document.getElementById('pg-prev').disabled = pageOffset <= 0;
+  document.getElementById('pg-next').disabled = pageOffset + PAGE_SIZE >= filtered.length;
+}
+
+document.getElementById('pg-prev').onclick = function() { pageOffset -= PAGE_SIZE; renderPage(); };
+document.getElementById('pg-next').onclick = function() { pageOffset += PAGE_SIZE; renderPage(); };
+
+document.getElementById('f-search').oninput  = applyFilter;
+document.getElementById('f-cat').onchange    = loadExpenses;
+document.getElementById('f-start').onchange  = loadExpenses;
+document.getElementById('f-end').onchange    = loadExpenses;
+document.getElementById('f-clear').onclick   = function() {
+  document.getElementById('f-search').value = '';
+  document.getElementById('f-cat').value    = '';
+  document.getElementById('f-start').value  = '';
+  document.getElementById('f-end').value    = '';
+  loadExpenses();
+};
+
+// CSV export
+document.getElementById('export-btn').onclick = async function() {
+  this.disabled = true; this.textContent = 'Exporting…';
+  try {
+    var rows = allExpenses;
+    if (!rows.length) { toast('No expenses to export.', 'err'); return; }
+    var csv = 'Date,Description,Category,Amount (INR)\n' + rows.map(function(e) {
+      return [
+        e.date ? e.date.split('T')[0] : '',
+        '"' + (e.description || '').replace(/"/g, '""') + '"',
+        '"' + (e.category_name || 'Uncategorized') + '"',
+        e.amount
+      ].join(',');
+    }).join('\n');
+    var a   = document.createElement('a');
+    a.href  = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'expenses_' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+    toast('Exported ' + rows.length + ' expenses!');
+  } catch(e) { toast('Export failed.', 'err'); }
+  this.disabled = false; this.textContent = '⬇ Export CSV';
+};
+
+// Add button
+document.getElementById('add-btn').onclick = function() {
+  editId = null;
+  document.getElementById('modal-title').textContent = 'Add Expense';
+  document.getElementById('exp-amt').value  = '';
+  document.getElementById('exp-desc').value = '';
+  document.getElementById('exp-cat').value  = '';
+  document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('exp-alert').className = 'alert hidden';
+  openModal('exp-overlay');
+};
+
+document.getElementById('exp-x').onclick      = function() { closeModal('exp-overlay'); };
+document.getElementById('exp-cancel').onclick  = function() { closeModal('exp-overlay'); };
+document.getElementById('exp-overlay').onclick = function(e) { if (e.target === this) closeModal('exp-overlay'); };
+
+// Edit
+function openEdit(id) {
+  var exp = allExpenses.find(function(e) { return e.id === id; });
+  if (!exp) { toast('Expense not found.', 'err'); return; }
+  editId = id;
+  document.getElementById('modal-title').textContent = 'Edit Expense';
+  document.getElementById('exp-amt').value  = exp.amount;
+  document.getElementById('exp-date').value = exp.date ? exp.date.split('T')[0] : '';
+  document.getElementById('exp-cat').value  = exp.category_id || '';
+  document.getElementById('exp-desc').value = exp.description || '';
+  document.getElementById('exp-alert').className = 'alert hidden';
+  openModal('exp-overlay');
+}
+
+document.getElementById('exp-save').onclick = async function() {
+  var amt  = document.getElementById('exp-amt').value;
+  var date = document.getElementById('exp-date').value;
+  var al   = document.getElementById('exp-alert');
+  al.className = 'alert hidden';
+  if (!amt || !date) { al.textContent = 'Amount and date are required.'; al.className = 'alert alert-error'; return; }
+  this.disabled = true; this.textContent = 'Saving…';
+  try {
+    var body = {
+      amount: parseFloat(amt),
+      category_id: document.getElementById('exp-cat').value || null,
+      description: document.getElementById('exp-desc').value,
+      date: date
+    };
+    var r = editId
+      ? await api('PUT',  '/api/expenses/' + editId, body)
+      : await api('POST', '/api/expenses', body);
+    if (r.success) {
+      closeModal('exp-overlay');
+      toast(editId ? 'Expense updated!' : 'Expense added!');
+      loadExpenses();
+    } else {
+      al.textContent = r.message; al.className = 'alert alert-error';
+    }
+  } catch(e) { al.textContent = 'Failed to save.'; al.className = 'alert alert-error'; }
+  this.disabled = false; this.textContent = 'Save Expense';
+};
+
+// Delete
+function delExp(id) {
+  confirm('Delete this expense? This cannot be undone.', async function() {
+    try {
+      var r = await api('DELETE', '/api/expenses/' + id);
+      if (r.success) { toast('Deleted!'); loadExpenses(); }
+      else toast(r.message, 'err');
+    } catch(e) { toast('Delete failed.', 'err'); }
+  });
+}
+
+initApp().then(function() { loadCats(); loadExpenses(); });
+</script>
 </body>
 </html>

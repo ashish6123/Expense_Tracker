@@ -6,6 +6,19 @@ const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
+// ─── Startup env validation ───────────────────────────────────────────────────
+const REQUIRED_ENV = ['JWT_SECRET', 'DB_HOST', 'DB_USER', 'DB_NAME'];
+const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missing.length) {
+  console.error('❌ Missing required environment variables:', missing.join(', '));
+  console.error('   Copy .env.example to .env and fill in the values.');
+  process.exit(1);
+}
+if (process.env.JWT_SECRET.length < 32) {
+  console.error('❌ JWT_SECRET must be at least 32 characters long.');
+  process.exit(1);
+}
+
 const app = express();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
@@ -69,7 +82,10 @@ app.get('*', (req, res) => {
 // ─── Error Handler ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ success: false, message: 'An unexpected error occurred.' });
+  const message = process.env.NODE_ENV === 'production'
+    ? 'An unexpected error occurred.'
+    : err.message || 'An unexpected error occurred.';
+  res.status(err.status || 500).json({ success: false, message });
 });
 
 app.listen(PORT, () => {

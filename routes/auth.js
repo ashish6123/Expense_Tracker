@@ -9,6 +9,30 @@ const authMiddleware = require('../middleware/auth');
 
 const OTP_EXPIRES = parseInt(process.env.OTP_EXPIRES_IN_MINUTES || 10);
 
+// ─── In-memory login lockout (resets on server restart) ──────────────────────
+const loginAttempts = new Map(); // email → { count, lockedUntil }
+const MAX_ATTEMPTS  = 5;
+const LOCKOUT_MS    = 15 * 60 * 1000; // 15 minutes
+
+function isLockedOut(email) {
+  const rec = loginAttempts.get(email);
+  if (!rec) return false;
+  if (rec.lockedUntil && Date.now() < rec.lockedUntil) return rec.lockedUntil;
+  return false;
+}
+function recordFailedLogin(email) {
+  const rec = loginAttempts.get(email) || { count: 0, lockedUntil: null };
+  rec.count++;
+  if (rec.count >= MAX_ATTEMPTS) {
+    rec.lockedUntil = Date.now() + LOCKOUT_MS;
+    rec.count = 0;
+  }
+  loginAttempts.set(email, rec);
+}
+function clearLoginAttempts(email) {
+  loginAttempts.delete(email);
+}
+
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -86,7 +110,7 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ success: false, message: err.message || 'Registration failed. Please try again.' });
+    res.status(500).json({ success: false, message: 'Registration failed. Please try again.' });
   }
 });
 
@@ -171,14 +195,24 @@ router.post('/login', async (req, res) => {
     if (!email || !password)
       return res.status(400).json({ success: false, message: 'Email and password are required.' });
 
+    const lockedUntil = isLockedOut(email.toLowerCase().trim());
+    if (lockedUntil) {
+      const mins = Math.ceil((lockedUntil - Date.now()) / 60000);
+      return res.status(429).json({ success: false, message: `Account temporarily locked. Try again in ${mins} minute(s).` });
+    }
+
     const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email.toLowerCase().trim()]);
-    if (users.length === 0)
+    if (users.length === 0) {
+      recordFailedLogin(email.toLowerCase().trim());
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    }
 
     const user = users[0];
     const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch)
+    if (!passwordMatch) {
+      recordFailedLogin(email.toLowerCase().trim());
       return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+    }
 
     if (!user.is_verified)
       return res.status(403).json({
@@ -188,6 +222,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
       });
 
+    clearLoginAttempts(email.toLowerCase().trim());
     const token = generateToken(user);
     res.cookie('token', token, cookieOptions);
     res.json({
